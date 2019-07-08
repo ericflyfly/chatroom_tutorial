@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Node.js Group Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font: 13px Helvetica, Arial; }
+        form { background: #fff; padding: 3px; position: fixed; bottom: 0; width: 100%; border-color: #000; border-top-style: solid; border-top-width: 1px;}
+        form input { font-size:15px; border-style: solid; border-width: 1px; padding: 10px; width: 75%; margin-right: .5%; }
+        form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; margin-left: 2%; }
+        #messages { list-style-type: none; margin: 0; padding: 0; }
+        #messages li { padding: 5px 10px; }
+        #messages li:nth-child(odd) { background: #ddd; }
+        #chat_status {margin-bottom: 1%; margin-left: 1%;}
+    </style>
+    <script src="../../socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  </head>
+  <body onload='load()'>
+    <input type="checkbox" id="check_all">
+    <button id="btn_email_msg" >Email messages</button>
+    <ul id="messages"></ul>
+    <form action="/" method="POST" id="chatForm">
+      <p id='chat_status' color="gray">no people in the ChatRoom</p>
+      <input id="txt" autocomplete="off" autofocus="on" placeholder="type your message here..." /><button id = "btn_send">Send</button>
+      <button id="btn_listen"  type=button > Listen </button>
+    </form>
+    <script>
+      //init global variables for voice recoginition
+      var recognition = null;
+      var finalTranscript = null;
+      var recording = false;
+
+      //edit bth_listen inner text and color
+      function edit_btn_listen(txt, color){
+        $("#btn_listen").html(txt);
+        $("#btn_listen").css('background', color);
+      }
+      
+      //call this function when the page start to load
+      function load(){
+        //setting recognition interface
+        window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        if ('SpeechRecognition' in window){
+          //setting up voice recognition variable
+          recognition = new window.SpeechRecognition();
+          recognition.interimResults = true;
+	        recognition.maxAlternatives = 5;
+          recognition.lang = "en-US";
+          //listen to the event that an result has been receive from recognition
+          recognition.onresult = (event) => {
+	          let interimTranscript = '';
+            //go through all possible result
+	          for (let i = event.resultIndex, len = event.results.length; i < len; i++){
+              console.log(event.results[i][0]);
+              let transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript = transcript;
+                $('#txt').val(finalTranscript + '');
+                edit_btn_listen('Listen', 'rgb(130, 224, 255)')
+              } else {
+                interimTranscript += transcript;
+                $('#txt').val(interimTranscript);
+              }
+	          }
+       	  }
+          //listen an event of voice recording end
+          recognition.onaudioend = () =>{
+            recording = false;
+            edit_btn_listen('Listen', 'rgb(130, 224, 255)')
+          }
+        }
+        else{
+          console.log('Speech recognition failed');
+          $("#btn_listen").attr('disabled', true);
+        }
+      }
+      
+      //start voice recognition when "btn_listen" has been clicked
+      $("#btn_listen").click( function(){
+	      if (recognition != null && !recording){
+          recognition.start();
+          recording = true;
+          edit_btn_listen('Listening...', 'lime')
+	      }
+      });
+
+      //send messages and the destination email to server
+      $("#btn_email_msg").click( function(){
+        console.log('prompt email');
+        var email = prompt('Please enter the recipient email');
+        //collect all messages that has been checked
+        //
+        if (email != null){
+          email = email.trim().toLowerCase();
+          console.log("send ... to " + email);
+          //socket.emit('email_msg', );
+        }
+      })
+
+      //var socket = io.connect('http://192.198.186.143:8080');
+      var socket = io.connect();
+      // submit text message without reload/refresh the page
+      $('#btn_send').click(function(e){
+          e.preventDefault(); // prevents page reloading
+          //console.log(username);
+          socket.emit('chat_message', $('#txt').val());
+          $('#txt').val('');
+          return false;
+      });
+      // append the chat text message
+      socket.on('chat_message', function(msg){
+          //**** continue to construct the full checkbox tag here, move this part in  $("#btn_email_msg").click ****//
+          var checkbox_tag = "...";
+          $('#messages').append($('<li>').html("<input type=\"checkbox\"" + " value=\"" + msg + "\" name=\"selected_msg\"> " + msg));
+          var favorite = [];
+          //select all checked box and push their values
+          $.each($("input[name='selected_msg']:checked"), function(){            
+              favorite.push($(this).val());
+          });
+          console.log(favorite);
+      });
+      // append text if someone is online
+      socket.on('is_online', function(username) {
+        //<input type="checkbox" id="check_all">
+          $('#messages').append($('<li>').html(username));
+      });
+      
+      //update number of people in the chatroom
+      socket.on('num_update', function(msg){
+        var chatHtml = document.getElementById("chat_status");
+        chatHtml.innerText = msg + ' people in the chat....';
+      });
+      
+      // ask username
+      var username = prompt('Please tell me your name');
+      socket.emit('username', username);
+    </script>
+  </body>
+</html>
