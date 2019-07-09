@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
-const topic_header = "test/";
+const topic_header = "";
 var num_connect = 0;
 var num_msg = 0;
 let msg_arr = [];
@@ -98,7 +98,7 @@ io.sockets.on('connection', function(socket) {
         message['email_msg_index'].forEach(function (msg_index){
             email_msg += msg_arr[msg_index] + "\n";
         });
-        //set up info to email messages
+
         let mailOptions = {
             from: 'cuhk.ccl@gmail.com',
             to: [message["dest_email"]],
@@ -106,7 +106,7 @@ io.sockets.on('connection', function(socket) {
             subject: "Chatboard Message to " + socket.username,
             text: email_msg,
         }
-        //send email
+
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
                 res.send({success:false, error:error});
@@ -124,6 +124,6 @@ io.sockets.on('connection', function(socket) {
 
 
 //create http server
-const server = http.listen(8081,function() {
-    console.log('listening on *:8081');
+const server = http.listen(8080,function() {
+    console.log('listening on *:8080');
 });

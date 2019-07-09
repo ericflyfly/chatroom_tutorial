@@ -17,7 +17,7 @@
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
   </head>
   <body onload='load()'>
-    <input type="checkbox" id="check_all">
+    <!--input type="checkbox" id="check_all"-->
     <button id="btn_email_msg" >Email messages</button>
     <ul id="messages"></ul>
     <form action="/" method="POST" id="chatForm">
@@ -57,7 +57,7 @@
               if (event.results[i].isFinal) {
                 finalTranscript = transcript;
                 $('#txt').val(finalTranscript + '');
-                edit_btn_listen('Listen', 'rgb(130, 224, 255)');
+                edit_btn_listen('Listen', 'rgb(130, 224, 255)')
               } else {
                 interimTranscript += transcript;
                 $('#txt').val(interimTranscript);
@@ -67,7 +67,7 @@
           //listen an event of voice recording end
           recognition.onaudioend = () =>{
             recording = false;
-            edit_btn_listen('Listen', 'rgb(130, 224, 255)');
+            edit_btn_listen('Listen', 'rgb(130, 224, 255)')
           }
         }
         else{
@@ -81,18 +81,8 @@
 	      if (recognition != null && !recording){
           recognition.start();
           recording = true;
-          edit_btn_listen('Listening...', 'lime');
+          edit_btn_listen('Listening...', 'lime')
 	      }
-      });
-
-      //listen to user click select all checkbox event
-      /**continue here 9  7  2019**/
-      $('#check_all').click( function(){
-        let status = this.checked;
-        console.log(status);
-        $("input[name='email_msg_checkbox']").each(function(){  
-          $(this).attr("checked", status);
-        });
       });
 
       //send messages and the destination email to server
@@ -106,7 +96,7 @@
           //select all checked box and push their values
           $.each($("input[name='email_msg_checkbox']:checked"), function(){            
             email_msg_index.push($(this).val());
-            $(this).attr("checked", false);
+            $(this).attr("checked", false)
           });
           //console.log("send " + email_msg_index + " to " + email);
           socket.emit('email_msg', {"dest_email":email, "email_msg_index":email_msg_index});
