@@ -98,7 +98,7 @@ io.sockets.on('connection', function(socket) {
         message['email_msg_index'].forEach(function (msg_index){
             email_msg += msg_arr[msg_index] + "\n";
         });
-
+        //set up info to email messages
         let mailOptions = {
             from: 'cuhk.ccl@gmail.com',
             to: [message["dest_email"]],
@@ -106,14 +106,13 @@ io.sockets.on('connection', function(socket) {
             subject: "Chatboard Message to " + socket.username,
             text: email_msg,
         }
-
+        //send email
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
-                res.send({success:false, error:error});
+                console.log({success:false, error:error});
             }
             else{
                 console.log('Message sent: ' + info.response);
-                res.send({success:true});
             }
         });
         

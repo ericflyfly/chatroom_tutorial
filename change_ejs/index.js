@@ -109,11 +109,10 @@ io.sockets.on('connection', function(socket) {
         //send email
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
-                res.send({success:false, error:error});
+                console.log({success:false, error:error});
             }
             else{
                 console.log('Message sent: ' + info.response);
-                res.send({success:true});
             }
         });
         
