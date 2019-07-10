@@ -123,6 +123,6 @@ io.sockets.on('connection', function(socket) {
 
 
 //create http server
-const server = http.listen(8081,function() {
-    console.log('listening on *:8081');
+const server = http.listen(8082,function() {
+    console.log('listening on *:8082');
 });
