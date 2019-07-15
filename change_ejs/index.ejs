@@ -114,7 +114,6 @@
       var recognition = null;
       var finalTranscript = null;
       var recording = false;
-      //var username = '';
 
       //edit bth_listen inner text and color
       function edit_btn_listen(txt, color){
@@ -163,14 +162,11 @@
         let username = prompt('Please enter your name below');
         socket.emit('username', username);
 
-        //acknowledge the email sent
+        //acknowledge user about email sent or fail
         socket.on('email_msg_res' + '_' + username, function(msg){
           alert(msg);
         });
       }
-
-            
-
       
       //start voice recognition when "btn_listen" has been clicked
       $("#btn_listen").click( function(){
@@ -247,8 +243,6 @@
         var chatHtml = document.getElementById("chat_status");
         chatHtml.innerText = msg + ' people in the chat....';
       });
-
-
 
     </script>
   </body>
