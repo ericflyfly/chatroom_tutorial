@@ -9,7 +9,6 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "";
 var num_connect = 0;
-//var num_msg = 0;
 let msg_arr = [];
 let msg_username = '';
 
@@ -110,9 +109,12 @@ io.sockets.on('connection', function(socket) {
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
                 console.log({success:false, error:error});
+                io.emit('email_msg_res' + '_'+socket.username, 'Fail to email Chatboard message.');
             }
             else{
                 console.log('Message sent: ' + info.response);
+                //console.log('email_msg_res' + '_'+socket.username);
+                io.emit('email_msg_res' + '_'+socket.username, 'Chatboard Message sent to ' + message["dest_email"] + '.');
             }
         });
         

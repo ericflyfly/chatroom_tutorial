@@ -114,6 +114,7 @@
       var recognition = null;
       var finalTranscript = null;
       var recording = false;
+      //var username = '';
 
       //edit bth_listen inner text and color
       function edit_btn_listen(txt, color){
@@ -158,7 +159,18 @@
           console.log('Speech recognition failed');
           $("#btn_listen").attr('disabled', true);
         }
+        // ask username
+        let username = prompt('Please enter your name below');
+        socket.emit('username', username);
+
+        //acknowledge the email sent
+        socket.on('email_msg_res' + '_' + username, function(msg){
+          alert(msg);
+        });
       }
+
+            
+
       
       //start voice recognition when "btn_listen" has been clicked
       $("#btn_listen").click( function(){
@@ -235,10 +247,9 @@
         var chatHtml = document.getElementById("chat_status");
         chatHtml.innerText = msg + ' people in the chat....';
       });
-      
-      // ask username
-      var username = prompt('Please enter your name below');
-      socket.emit('username', username);
+
+
+
     </script>
   </body>
 </html>
