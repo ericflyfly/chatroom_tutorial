@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "test/";
 var num_connect = 0;
-var num_msg = 0;
+//var num_msg = 0;
 let msg_arr = [];
 let msg_username = '';
 
@@ -28,7 +28,7 @@ client.on('connect', function (){
     client.subscribe(topic_header+'chat_room/disconnect');
     client.subscribe(topic_header+'chat_room/username');
     client.subscribe(topic_header+'chat_room/chat_message/#');
-    client.subscribe(topic_header+'monitor/online');
+    client.subscribe('monitor/online');
 });
 
 //Listen message event and then take action respectively
@@ -55,14 +55,14 @@ client.on('message', function(topic, message){
             break;
         case topic_header+'chat_room/chat_message/data':
             //console.log('Receive %s from %s', message, topic);
-            num_msg += 1;
-            client.publish(topic_header+'chat_room/num_msg', num_msg.toString());
+            //num_msg += 1;
+            client.publish(topic_header+'chat_room/num_msg', msg_arr.length.toString());
             msg_arr.push(msg_username + ": " + message);
-            //console.log('num msg: %s', num_msg.toString());
-            io.emit('chat_message', {'index': num_msg - 1, 'data': '<strong>' + msg_username + '</strong>: ' + message });
+            console.log('num msg: %s', msg_arr.length.toString());
+            io.emit('chat_message', {'index': msg_arr.length - 1, 'data': '<strong>' + msg_username + '</strong>: ' + message });
             break;
-        case topic_header+'monitor/online':
-            client.publish(topic_header+'chat_room/num_msg', num_msg.toString());
+        case 'monitor/online':
+            client.publish(topic_header+'chat_room/num_msg', msg_arr.length.toString());
             client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
             break;
         default:

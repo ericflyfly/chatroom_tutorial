@@ -136,7 +136,7 @@
 	          let interimTranscript = '';
             //go through all possible result
 	          for (let i = event.resultIndex, len = event.results.length; i < len; i++){
-              console.log(event.results[i][0]);
+              //console.log(event.results[i][0]);
               let transcript = event.results[i][0].transcript;
               if (event.results[i].isFinal) {
                 finalTranscript = transcript;
@@ -220,7 +220,7 @@
         </label>*/
         var checkbox_tag = "<label class = \"container\">"+msg['data'] +"<input type=\"checkbox\" class=\"checkbox\" value=\"" + msg['index'] + "\"> <span class=\"checkmark\"> </span>" + 
         " </label>";
-        console.log(checkbox_tag);
+        //console.log(checkbox_tag);
         //var checkbox_tag = "<input type=\"checkbox\"" + " value=\"" + msg['index'] + "\" class=\"checkbox\"> " + msg['data'];
         $('#messages').append($('<li>').html(checkbox_tag));
       });
