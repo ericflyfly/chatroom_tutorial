@@ -57,7 +57,7 @@ client.on('message', function(topic, message){
             //num_msg += 1;
             client.publish(topic_header+'chat_room/num_msg', msg_arr.length.toString());
             msg_arr.push(msg_username + ": " + message);
-            console.log('num msg: %s', msg_arr.length.toString());
+            //console.log('num msg: %s', msg_arr.length.toString());
             io.emit('chat_message', {'index': msg_arr.length - 1, 'data': '<strong>' + msg_username + '</strong>: ' + message });
             break;
         case 'monitor/online':
