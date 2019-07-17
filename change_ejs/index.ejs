@@ -105,7 +105,7 @@
     <button id="btn_email_msg" >Email Messages</button>
     <ul id="messages"></ul>
     <form action="/" method="POST" id="chatForm">
-      <p id='chat_status' color="gray">no people in the ChatRoom</p>
+      <!--p id='chat_status' color="gray">no people in the ChatRoom</p-->
       <input id="txt" autocomplete="off" autofocus="on" placeholder="type your message here..." /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
       <button id="btn_listen"  type=button > Listen </button>
     </form>
@@ -114,6 +114,16 @@
       var recognition = null;
       var finalTranscript = null;
       var recording = false;
+      var login = false;
+      let socketID = "";
+      //var socket = io.connect('http://192.198.186.143:8080');
+
+      var socket = io.connect();
+      //when socket connected
+      socket.on('connect', function(){
+        socketID = socket.id;
+        //console.log(socketID);
+      });
 
       //edit bth_listen inner text and color
       function edit_btn_listen(txt, color){
@@ -166,13 +176,11 @@
           $("#btn_listen").attr('disabled', true);
         }
         //ask username
-        let username = prompt('Please enter your name below');
-        socket.emit('username', username);
-
+        //let username = prompt('Please enter your name below');
+        //socket.emit('username', username);
+        $('#messages').append($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
         //acknowledge user about email sent or fail
-        socket.on('email_msg_res' + '_' + username, function(msg){
-          alert(msg);
-        });
+
       }
       
       //start voice recognition when "btn_listen" has been clicked
@@ -222,16 +230,26 @@
         }
       })
 
-      //var socket = io.connect('http://192.198.186.143:8080');
-      var socket = io.connect();
+
       // submit text message without reload/refresh the page
       $('#btn_send').click(function(e){
           e.preventDefault(); // prevents page reloading
           //console.log(username);
-          socket.emit('chat_message', $('#txt').val());
+          if(login){
+            socket.emit('chat_message', $('#txt').val());
+          }
+          else{
+            socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val()});
+          }
           $('#txt').val('');
           return false;
       });
+
+      // when server response login fail
+      socket.on('login_fail', function(msg){
+        $('#messages').append($('<li>').html('⚫ <i> Login failed. Please try again...</i>'));
+      });
+
       // append the chat text message
       socket.on('chat_message', function(msg){
         var checkbox_tag = "<label class = \"container\">"+msg['data'] +"<input type=\"checkbox\" class=\"checkbox\" value=\"" + msg['index'] + "\"> <span class=\"checkmark\"> </span>" + 
@@ -240,14 +258,20 @@
       });
       // append text if someone is online
       socket.on('is_online', function(username) {
-          $('#messages').append($('<li>').html(username));
+        $('#messages').append($('<li>').html(username));
+        login = true;
+        socket.emit('room', 'online');
+        socket.on('email_msg_res' + '_' + username, function(msg){
+          alert(msg);
+        });
       });
-      
+
+
       //update number of people in the chatroom
-      socket.on('num_update', function(msg){
+      /*socket.on('num_update', function(msg){
         var chatHtml = document.getElementById("chat_status");
         chatHtml.innerText = msg + ' people in the chat....';
-      });
+      });*/
 
     </script>
   </body>
