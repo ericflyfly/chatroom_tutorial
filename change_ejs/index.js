@@ -39,20 +39,10 @@ client.on('message', function(topic, message){
     message = message.toString();
     //console.log('%s -> %s', topic, message.toString());
     switch(topic){
-        /*case topic_header+'chat_room/username':
-            //console.log('Receive %s from %s', message, topic);
-            io.to('online').emit('is_online', '🔵 <i>' + message + ' join the chat..</i>');
-            num_connect += 1;
-            client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
-            io.to('online').emit('num_update', num_connect.toString());
-            break;
-            */
         case topic_header+'chat_room/disconnect':
-            //console.log('Receive %s from %s', message, topic);
             //io.sockets.in('online').emit('is_online', '🔴 <i>' + message + ' left the chat..</i>');
             num_connect -= 1;
             client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
-            //io.sockets.in('online').emit('num_update', num_connect.toString());
             break;
         case topic_header+'chat_room/chat_message/username':
             msg_username = message;
@@ -91,21 +81,17 @@ io.sockets.on('connection', function(socket) {
             client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
             //client.publish(topic_header+'chat_room/username', socket.username);
             io.to(socketID).emit('is_online', '🔵 <i>' + socket.username + ' join the chat..</i>');
-            //io.sockets.in('online').emit('num_update', num_connect.toString());
         }
         else{
             io.to(socketID).emit('login_fail',"")
         }
-        //socket.username = username;
-        //client.publish(topic_header+'chat_room/username', socket.username);
-        //console.log(socket.username);
     });
 
-    /*socket.on('disconnect', function(username) {
+    socket.on('disconnect', function(username) {
         if (num_connect > 0){
             client.publish(topic_header+'chat_room/disconnect', socket.username);
         }
-    })*/
+    })
 
     socket.on('chat_message', function(message) {
         client.publish(topic_header+'chat_room/chat_message/username', socket.username);
@@ -115,7 +101,8 @@ io.sockets.on('connection', function(socket) {
 
     //receive an index of messages that need to email
     socket.on('email_msg', function (message){
-        console.log(socket.username);
+        //console.log(socket.username);
+        let socketID = message['socketID'];
         email_msg = "";
         message['email_msg_index'].forEach(function (msg_index){
             email_msg += msg_arr[msg_index] + "\n";
@@ -132,12 +119,12 @@ io.sockets.on('connection', function(socket) {
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
                 console.log({success:false, error:error});
-                io.emit('email_msg_res' + '_'+socket.username, 'Fail to email Chatboard message.');
+                io.to(socketID).emit('email_msg_res', 'Fail to email Chatboard message.');
             }
             else{
                 console.log('Message sent: ' + info.response);
                 //console.log('email_msg_res' + '_'+socket.username);
-                io.emit('email_msg_res' + '_'+socket.username, 'Chatboard Message sent to ' + message["dest_email"] + '.');
+                io.to(socketID).emit('email_msg_res', 'Chatboard Message sent to ' + message["dest_email"] + '.');
             }
         });
     });

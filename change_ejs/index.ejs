@@ -226,7 +226,7 @@
           });
           $("#check_all").prop('checked',false);
           //console.log("send " + email_msg_index + " to " + email);
-          socket.emit('email_msg', {"dest_email":email, "email_msg_index":email_msg_index});
+          socket.emit('email_msg', {"socketID": socketID,"dest_email":email, "email_msg_index":email_msg_index});
         }
       })
 
@@ -261,7 +261,7 @@
         $('#messages').append($('<li>').html(username));
         login = true;
         socket.emit('room', 'online');
-        socket.on('email_msg_res' + '_' + username, function(msg){
+        socket.on('email_msg_res', function(msg){
           alert(msg);
         });
       });
