@@ -135,21 +135,13 @@
           //listen to the event that an result has been receive from recognition
           recognition.onresult = (event) => {
             let tempStr = $('#txt').val();
-	          //let interimTranscript = '';
             //go through all possible result
 	          for (let i = event.resultIndex, len = event.results.length; i < len; i++){
-              //console.log(event.results[i][0].transcript);
               let transcript = event.results[i][0].transcript;
               if (event.results[i].isFinal) {
                 finalTranscript = transcript;
                 $('#txt').val( tempStr + finalTranscript);
-                //edit_btn_listen('Listen', 'rgb(130, 224, 255)');
-              } 
-              /*else {
-                interimTranscript += transcript;
-                console.log(interimTranscript);
-                $('#txt').val(tempStr + ' ' + interimTranscript);
-              }*/
+              }
 	          }
            }
           recognition.onend = () => {
@@ -173,7 +165,7 @@
           console.log('Speech recognition failed');
           $("#btn_listen").attr('disabled', true);
         }
-        // ask username
+        //ask username
         let username = prompt('Please enter your name below');
         socket.emit('username', username);
 
@@ -242,20 +234,12 @@
       });
       // append the chat text message
       socket.on('chat_message', function(msg){
-
-        /*<label class="container">
-          <input type="checkbox" id="check_all">
-          <span class="checkmark"></span>
-        </label>*/
         var checkbox_tag = "<label class = \"container\">"+msg['data'] +"<input type=\"checkbox\" class=\"checkbox\" value=\"" + msg['index'] + "\"> <span class=\"checkmark\"> </span>" + 
         " </label>";
-        //console.log(checkbox_tag);
-        //var checkbox_tag = "<input type=\"checkbox\"" + " value=\"" + msg['index'] + "\" class=\"checkbox\"> " + msg['data'];
         $('#messages').append($('<li>').html(checkbox_tag));
       });
       // append text if someone is online
       socket.on('is_online', function(username) {
-        //<input type="checkbox" id="check_all">
           $('#messages').append($('<li>').html(username));
       });
       

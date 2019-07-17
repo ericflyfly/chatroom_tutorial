@@ -8,9 +8,13 @@ const nodemailer = require('nodemailer');
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "test/";
+const temp_real_name = ['eric chan', 'peter leung', 'mandy wong'];
+const temp_nick_name = ['eric', 'peter', 'mandy'];
+
 var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
+let user_auth = false;
 
 //connect with frontend
 app.get('/', function(req, res) {
