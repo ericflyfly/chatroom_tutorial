@@ -4,25 +4,42 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const mqtt = require('mqtt');
 const nodemailer = require('nodemailer');
+const mongojs = require('mongojs');
 
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "test/";
-const temp_real_name = ['eric chan', 'peter leung', 'mandy wong'];
-const temp_nick_name = ['eric', 'peter', 'mandy'];
 
 var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
-let room = 'online';
 
-//connect with frontend
+//connect to frontend
 app.get('/', function(req, res) {
     res.render('index.ejs');
 });
 
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
 const client = mqtt.connect('mqtt://192.168.186.143:8088');
+const db = mongojs("ccl:ccl123!@localhost/chatroom", ['myCollection']);
+
+db.on('error', function(err){
+    console.log("database error " + err);
+});
+
+/*let objs = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}];
+db.user.insert(objs, function(err, res){
+    if (err) throw err;
+    console.log(res);
+});*/
+
+/*
+db.user.remove({real_name: 'peter leung'}, function(err, obj){
+    if (err) throw err;
+    console.log(obj);
+})
+*/
+
 
 //listen to MQTT broker connection
 client.on('connect', function (){
@@ -34,7 +51,7 @@ client.on('connect', function (){
     client.subscribe('monitor/online');
 });
 
-//Listen message event and then take action respectively
+//Listen MQTT message event and then take action respectively
 client.on('message', function(topic, message){
     message = message.toString();
     //console.log('%s -> %s', topic, message.toString());
@@ -70,21 +87,19 @@ io.sockets.on('connection', function(socket) {
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        username = username_data['msg'].toLowerCase();
-        username_index = temp_real_name.indexOf(username);
-        let socketID = username_data['socketID'];
-        //console.log("username: " + username + " \nindex: " + username_index);
-        if (username_index > -1){
-            
-            socket.username = temp_nick_name[username_index];
-            num_connect += 1;
-            client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
-            //client.publish(topic_header+'chat_room/username', socket.username);
-            io.to(socketID).emit('is_online', '🔵 <i>' + socket.username + ' join the chat..</i>');
-        }
-        else{
-            io.to(socketID).emit('login_fail',"")
-        }
+        db.user.findOne({real_name: username_data['msg']}, function(err, doc){
+            let socketID = username_data['socketID'];
+            if (doc != null){
+                console.log(doc['nick_name']);
+                socket.username = doc['nick_name'];
+                num_connect += 1;
+                client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
+                io.to(socketID).emit('is_online', '🔵 <i>' + socket.username + ' join the chat..</i>');
+            }
+            else{
+                io.to(socketID).emit('login_fail',"");
+            }
+        });
     });
 
     socket.on('disconnect', function(username) {

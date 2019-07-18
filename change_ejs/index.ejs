@@ -175,12 +175,7 @@
           console.log('Speech recognition failed');
           $("#btn_listen").attr('disabled', true);
         }
-        //ask username
-        //let username = prompt('Please enter your name below');
-        //socket.emit('username', username);
         $('#messages').append($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
-        //acknowledge user about email sent or fail
-
       }
       
       //start voice recognition when "btn_listen" has been clicked
@@ -236,10 +231,12 @@
           e.preventDefault(); // prevents page reloading
           //console.log(username);
           if(login){
+            //already log in able to send messages
             socket.emit('chat_message', $('#txt').val());
           }
           else{
-            socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val()});
+            //have not log in
+            socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val().toLowerCase()});
           }
           $('#txt').val('');
           return false;

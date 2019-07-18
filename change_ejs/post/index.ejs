@@ -239,7 +239,7 @@
             socket.emit('chat_message', $('#txt').val());
           }
           else{
-            socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val()});
+            socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val().toLowerCase()});
           }
           $('#txt').val('');
           return false;
