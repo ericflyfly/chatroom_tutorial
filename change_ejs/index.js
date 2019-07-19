@@ -4,7 +4,18 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const mqtt = require('mqtt');
 const nodemailer = require('nodemailer');
-const mongojs = require('mongojs');
+//const mongojs = require('mongojs');
+const multer = require('multer');
+const mongodb = require('mongodb');
+const MongoClient = require('mongodb').MongoClient;
+//const MongoClient = require('mongodb').MongoClient;
+const ObjectID = require('mongodb').ObjectID;
+const { Readable } = require('stream');
+var siofu = require("socketio-file-upload");
+var siofuapp = express()
+    .use(siofu.router)
+    .listen(8000);
+//const trackRoute = express.Router();
 
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
@@ -13,32 +24,32 @@ const topic_header = "test/";
 var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
+let port_num = 8082;
 
 //connect to frontend
 app.get('/', function(req, res) {
     res.render('index.ejs');
 });
 
+
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
 const client = mqtt.connect('mqtt://192.168.186.143:8088');
-const db = mongojs("ccl:ccl123!@localhost/chatroom", ['myCollection']);
 
-db.on('error', function(err){
-    console.log("database error " + err);
+let mongo;
+
+MongoClient.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom", {useNewUrlParser: true} ,function(err, db) {
+    if (err) {
+        console.log('MongoDB Connection Error. Please make sure that MongoDB is running.');
+        process.exit(1);
+    }
+  console.log("Database created!");
+  mongo = db;
 });
 
-/*let objs = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}];
-db.user.insert(objs, function(err, res){
-    if (err) throw err;
-    console.log(res);
+/*const db = mongojs("ccl:ccl123!@localhost/chatroom", ['myCollection']);
+let bucket = new mongojs.GridFSBucket(db, {
+    bucketName: 'tracks'
 });*/
-
-/*
-db.user.remove({real_name: 'peter leung'}, function(err, obj){
-    if (err) throw err;
-    console.log(obj);
-})
-*/
 
 
 //listen to MQTT broker connection
@@ -84,14 +95,30 @@ client.on('message', function(topic, message){
 //socket.io communicate with frontend
 io.sockets.on('connection', function(socket) {
 
+    var uploader = new siofu();
+    uploader.dir = "/uploads";
+    uploader.listen(socket);
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        db.user.findOne({real_name: username_data['msg']}, function(err, doc){
+        let myobj = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}]
+        /*mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
+            if (err) throw err;
+            console.log("Number of documents inserted: " + res.insertedCount);
+        });*/
+        /*
+        for(var i = 0; i < 3; i++){
+            mongo.db("chatroom").collection("user").deleteMany(myobj[i], function(err, obj) {
+                if (err) throw err;
+                console.log(obj.result.n + " document(s) deleted");
+            });
+        }*/
+        mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
             let socketID = username_data['socketID'];
-            if (doc != null){
-                console.log(doc['nick_name']);
-                socket.username = doc['nick_name'];
+            //console.log(res);
+            if (res != null){
+                console.log(res['nick_name']);
+                socket.username = res['nick_name'];
                 num_connect += 1;
                 client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
                 io.to(socketID).emit('is_online', '🔵 <i>' + socket.username + ' join the chat..</i>');
@@ -148,11 +175,48 @@ io.sockets.on('connection', function(socket) {
     socket.on('room', function(room){
         socket.join(room);
     })
-
 })
+
+/**
+ * POST /tracks
+ */
+/*trackRoute.post('/', (req, res) => {
+    const storage = multer.memoryStorage()
+    const upload = multer({ storage: storage, limits: { fields: 1, fileSize: 6000000, files: 1, parts: 2 }});
+    upload.single('track')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ message: "Upload Request Validation Failed" });
+      } else if(!req.body.name) {
+        return res.status(400).json({ message: "No track name in request body" });
+      }
+      
+      let trackName = req.body.name;
+      
+      // Covert buffer to Readable Stream
+      const readableTrackStream = new Readable();
+      readableTrackStream.push(req.file.buffer);
+      readableTrackStream.push(null);
+  
+      let bucket = new mongodb.GridFSBucket(mongo, {
+        bucketName: 'tracks'
+      });
+  
+      let uploadStream = bucket.openUploadStream(trackName);
+      let id = uploadStream.id;
+      readableTrackStream.pipe(uploadStream);
+  
+      uploadStream.on('error', () => {
+        return res.status(500).json({ message: "Error uploading file" });
+      });
+  
+      uploadStream.on('finish', () => {
+        return res.status(201).json({ message: "File uploaded successfully, stored under Mongo ObjectID: " + id });
+      });
+    });
+});*/
 
 
 //create http server
-const server = http.listen(8082,function() {
-    console.log('listening on *:8082');
+const server = http.listen(port_num,function() {
+    console.log('listening on *:' + port_num);
 });
