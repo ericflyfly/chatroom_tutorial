@@ -95,7 +95,7 @@
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script src="https://unpkg.com/mic-recorder-to-mp3"></script>
-    <script src="/siofu/client.js"></script>
+    <script src='/siofu/client.js'></script>
   </head>
   <body onload='load()'>
 
@@ -119,16 +119,19 @@
       var finalTranscript = null;
       var recording = false;
       var login = false;
+      var user_realname;
       let socketID = "";
-      var SocketIOFileUpload = require('socketio-file-upload');
       //var socket = io.connect('http://192.198.186.143:8080');
-
       var socket = io.connect();
+      //set up socketio-file-upload
+      const uploader = new SocketIOFileUpload(socket);
+
       //when socket connected
       socket.on('connect', function(){
         socketID = socket.id;
         //console.log(socketID);
       });
+
 
       //edit bth_listen inner text and color
       function edit_btn_listen(txt, color){
@@ -186,7 +189,9 @@
       //start voice recognition when "btn_listen" has been clicked
       $("#btn_listen").on("mousedown", function(){
 	      if (recognition != null && !recording){
-          startRecording();
+          if(login){
+            startRecording();
+          }
           recognition.start();
           recording = true;
           edit_btn_listen('Listening...', 'lime');
@@ -194,7 +199,9 @@
       }).on("mouseup mouseleave", function(){
           //"mouseleave" when mouse leave the button
           //execute when user release the mouse
-          stopRecording();
+          if(login){
+            stopRecording();
+          }
           recognition.stop();
           recording = false;
           edit_btn_listen('Listen', 'rgb(130, 224, 255)');
@@ -239,7 +246,7 @@
           //console.log(username);
           if(login){
             //already log in able to send messages
-            socket.emit('chat_message', $('#txt').val());
+            socket.emit('chat_message', {'socketID': socketID, 'msg': $('#txt').val()});
           }
           else{
             //have not log in
@@ -261,13 +268,39 @@
         $('#messages').append($('<li>').html(checkbox_tag));
       });
       // append text if someone is online
-      socket.on('is_online', function(username) {
-        $('#messages').append($('<li>').html(username));
+      socket.on('is_online', function(data) {
+        $('#messages').append($('<li>').html(data['data']));
+        user_realname = data['curr_username'];
         login = true;
         socket.emit('room', 'online');
         socket.on('email_msg_res', function(msg){
           alert(msg);
         });
+      });
+
+      function system_msg(msg){
+        $('#messages').append($('<li>').html('⚫ <i> ' + msg + '</i>'));
+      }
+
+      socket.on('hi', function(data){
+        system_msg(data);
+      });
+      socket.on('curr_date', function(data){
+        system_msg(new Date().toString());
+      });
+      socket.on('exit', function(data){
+        system_msg(data);
+        setTimeout(function (){
+          close();
+        }, 2000);
+        
+      });
+      socket.on('sign_out', function(data){
+        login = false;
+        system_msg(data);
+      });
+      socket.on('tom_date', function(data){
+        system_msg(new Date(new Date().getTime() + (24 * 60 * 60 * 1000)));
       });
 
 
@@ -283,7 +316,7 @@
       //start recording
       function startRecording() {
         recorder.start().then(() => {
-          console.log('start recording');
+          //console.log('start recording');
         }).catch((e) => {
           console.error(e);
         });
@@ -293,24 +326,25 @@
       function stopRecording() {
         recorder.stop().getMp3().then(([buffer, blob]) => {
           if (blob['size'] > 0){
-            console.log(buffer, blob);
-            const file = new File(buffer, 'music.mp3', {
+            //console.log(buffer, blob);
+            const file = new File(buffer, user_realname+'.mp3', {
               type: blob.type,
               lastModified: Date.now()
             });
-
-            const li = document.createElement('li');
+            //send files to node server
+            uploader.submitFiles([file]);
+            /*const li = document.createElement('li');
             const player = new Audio(URL.createObjectURL(file));
             player.controls = true;
             li.appendChild(player);
-            document.querySelector('#playlist').appendChild(li);
-            var uploader = new SocketIOFileUpload(socket);
-            uploader.listenOnInput(file);
+            document.querySelector('#playlist').appendChild(li);*/
+            //uploader.listenOnInput(file);
           }
         }).catch((e) => {
           console.error(e);
         });
       }
+
 
     </script>
   </body>

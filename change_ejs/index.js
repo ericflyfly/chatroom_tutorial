@@ -5,22 +5,25 @@ const io = require('socket.io')(http);
 const mqtt = require('mqtt');
 const nodemailer = require('nodemailer');
 //const mongojs = require('mongojs');
-const multer = require('multer');
 const mongodb = require('mongodb');
-const MongoClient = require('mongodb').MongoClient;
-//const MongoClient = require('mongodb').MongoClient;
-const ObjectID = require('mongodb').ObjectID;
-const { Readable } = require('stream');
-var siofu = require("socketio-file-upload");
-var siofuapp = express()
-    .use(siofu.router)
-    .listen(8000);
-//const trackRoute = express.Router();
+const mongo_client = require('mongodb').MongoClient;
+const path = require('path');
+//set up socketio-file-upload modules
+const siofu = require('socketio-file-upload');
+app.use(siofu.router);
+const assert = require('assert');
+const fs = require('fs');
+const redis = require("redis");
+const redis_client = redis.createClient();
+var bucket;
+
+
 
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "test/";
 
+let curr_username;
 var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
@@ -37,13 +40,14 @@ const client = mqtt.connect('mqtt://192.168.186.143:8088');
 
 let mongo;
 
-MongoClient.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom", {useNewUrlParser: true} ,function(err, db) {
+mongo_client.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom",function(err, db) {
     if (err) {
         console.log('MongoDB Connection Error. Please make sure that MongoDB is running.');
         process.exit(1);
     }
   console.log("Database created!");
   mongo = db;
+  bucket = new mongodb.GridFSBucket(mongo.db("chatroom"));
 });
 
 /*const db = mongojs("ccl:ccl123!@localhost/chatroom", ['myCollection']);
@@ -51,6 +55,39 @@ let bucket = new mongojs.GridFSBucket(db, {
     bucketName: 'tracks'
 });*/
 
+redis_client.on("error", function (err){
+    console.log("Redis Error " + err);
+})
+
+redis_client.on("connect", function(){
+    console.log("Connected to Redis.");
+    create_redis_data();
+});
+
+function create_redis_data(){
+    let intent_keyword = ["hi", "Hello World!", "date", "curr_date", "exit", "Good Bye! window close after 2 seconds!", "sign out","Sucessful Sign Out !", "tomorrow", "tom_date" ];
+    redis_client.hdel('intent', "end", function(err, res){
+        console.log("redis del res: " + res);
+        console.log("redis del err: " + err); 
+    });
+    redis_client.hmset('intent', intent_keyword, function(err, res){
+        console.log("redis res: " + res);
+        console.log("redis err: " + err); 
+    });
+    //get all haskeys from a key
+    /*redis_client.hkeys('intent', function (err, replies) {
+        if (err) {
+            return console.error('error response - ' + err);
+        }
+        // 
+        console.log(replies.length + ' replies:');
+        replies.forEach(function (reply, i) {
+            console.log('    ' + i + ': ' + reply);
+        });
+        console.log(replies[0]);
+    });*/
+
+}
 
 //listen to MQTT broker connection
 client.on('connect', function (){
@@ -94,14 +131,26 @@ client.on('message', function(topic, message){
 
 //socket.io communicate with frontend
 io.sockets.on('connection', function(socket) {
-
-    var uploader = new siofu();
-    uploader.dir = "/uploads";
+    const uploader = new siofu();
+    uploader.dir = path.join(__dirname, '/uploads');
     uploader.listen(socket);
+
+    uploader.on("saved", function(event){
+        console.log(event['file']['pathName']);
+        //console.log(event.file.name);
+        //send mp3 from local path to mongodb
+        file_to_mongo(event['file']['pathName'], event.file.name);
+        //after mp3 file store in mongodb, remove it from the local directory
+        fs.unlink(event['file']['pathName'], function(err){
+            if (err) throw err;
+            console.log(event['file']['pathName']+' Deleted');
+        });
+    });
+
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        let myobj = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}]
+        //let myobj = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}]
         /*mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
             if (err) throw err;
             console.log("Number of documents inserted: " + res.insertedCount);
@@ -114,14 +163,15 @@ io.sockets.on('connection', function(socket) {
             });
         }*/
         mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
-            let socketID = username_data['socketID'];
+            socketID = username_data['socketID'];
             //console.log(res);
             if (res != null){
+                curr_username = username_data['msg'];
                 console.log(res['nick_name']);
                 socket.username = res['nick_name'];
                 num_connect += 1;
                 client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
-                io.to(socketID).emit('is_online', '🔵 <i>' + socket.username + ' join the chat..</i>');
+                io.to(socketID).emit('is_online', {'curr_username': curr_username, 'data': '🔵 <i>' + socket.username + ' join the chat..</i>' });
             }
             else{
                 io.to(socketID).emit('login_fail',"");
@@ -136,8 +186,46 @@ io.sockets.on('connection', function(socket) {
     })
 
     socket.on('chat_message', function(message) {
-        client.publish(topic_header+'chat_room/chat_message/username', socket.username);
-        client.publish(topic_header+'chat_room/chat_message/data', message)
+        
+        //let intent_keyword = ["hi", "Hello World!", "date", "curr_date", "exit", "exit", "Sign out","sign_out", "tomorrow", "tom_date" ];
+        redis_client.hget("intent", message['msg'].toLowerCase(), function(err, reply){
+            if (err) {
+                return console.error('error response - ' + err);
+            }
+            else{
+                if (reply){
+                    switch(message['msg'].toLowerCase()){
+                        case 'hi':
+                            io.to(socketID).emit('hi', reply);
+                            break;
+                        case 'date':
+                            io.to(socketID).emit('curr_date',"");
+                            break;
+                        case 'exit':
+                            io.to(socketID).emit('exit', reply);
+                            break;
+                        case  'sign out':
+                            socket.leave("online");
+                            io.to(socketID).emit('sign_out', reply);
+                            if (num_connect > 0){
+                                client.publish(topic_header+'chat_room/disconnect', socket.username);
+                            }
+                            break;
+                        case 'tomorrow':
+                            io.to(socketID).emit('tom_date', "");
+                            break;
+                        default:
+                            return console.error('error resply - ' + reply);
+                    }
+                
+                }
+                else{
+                    client.publish(topic_header+'chat_room/chat_message/username', socket.username);
+                    client.publish(topic_header+'chat_room/chat_message/data', message['msg']);
+                }
+                //console.log(reply);
+            }
+        });
         //console.log(message);
     });
 
@@ -177,43 +265,17 @@ io.sockets.on('connection', function(socket) {
     })
 })
 
-/**
- * POST /tracks
- */
-/*trackRoute.post('/', (req, res) => {
-    const storage = multer.memoryStorage()
-    const upload = multer({ storage: storage, limits: { fields: 1, fileSize: 6000000, files: 1, parts: 2 }});
-    upload.single('track')(req, res, (err) => {
-      if (err) {
-        return res.status(400).json({ message: "Upload Request Validation Failed" });
-      } else if(!req.body.name) {
-        return res.status(400).json({ message: "No track name in request body" });
-      }
-      
-      let trackName = req.body.name;
-      
-      // Covert buffer to Readable Stream
-      const readableTrackStream = new Readable();
-      readableTrackStream.push(req.file.buffer);
-      readableTrackStream.push(null);
-  
-      let bucket = new mongodb.GridFSBucket(mongo, {
-        bucketName: 'tracks'
-      });
-  
-      let uploadStream = bucket.openUploadStream(trackName);
-      let id = uploadStream.id;
-      readableTrackStream.pipe(uploadStream);
-  
-      uploadStream.on('error', () => {
-        return res.status(500).json({ message: "Error uploading file" });
-      });
-  
-      uploadStream.on('finish', () => {
-        return res.status(201).json({ message: "File uploaded successfully, stored under Mongo ObjectID: " + id });
-      });
+//function send file in the system to mongodb
+function file_to_mongo(file_Pathname, filename){
+    fs.createReadStream(file_Pathname).
+    pipe(bucket.openUploadStream(filename)).
+    on('error', function(error) {
+      assert.ifError(error);
+    }).
+    on('finish', function() {
+      console.log('file uploaded to Mongodb done!');
     });
-});*/
+}
 
 
 //create http server
