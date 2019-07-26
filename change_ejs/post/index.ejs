@@ -246,7 +246,7 @@
           //console.log(username);
           if(login){
             //already log in able to send messages
-            socket.emit('chat_message', $('#txt').val());
+            socket.emit('chat_message', {'socketID': socketID, 'msg': $('#txt').val()});
           }
           else{
             //have not log in
@@ -276,6 +276,30 @@
         socket.on('email_msg_res', function(msg){
           alert(msg);
         });
+      });
+
+      function system_msg(msg){
+        $('#messages').append($('<li>').html('⚫ <i> ' + msg + '</i>'));
+      }
+
+      socket.on('hi', function(data){
+        system_msg(data);
+      });
+      socket.on('curr_date', function(data){
+        system_msg(new Date().toString());
+      });
+      socket.on('six', function(data){
+        system_msg(data);
+      });
+      socket.on('sign_out', function(data){
+        login = false;
+        $('#messages').empty();
+        system_msg(data);
+        //setTimeout(function(){ location.reload(); }, 3000);
+        
+      });
+      socket.on('tom_date', function(data){
+        system_msg(new Date(new Date().getTime() + (24 * 60 * 60 * 1000)));
       });
 
 

@@ -6,15 +6,17 @@ const mqtt = require('mqtt');
 const nodemailer = require('nodemailer');
 //const mongojs = require('mongojs');
 const mongodb = require('mongodb');
-const MongoClient = require('mongodb').MongoClient;
-//const MongoClient = require('mongodb').MongoClient;
+const mongo_client = require('mongodb').MongoClient;
 const path = require('path');
 //set up socketio-file-upload modules
 const siofu = require('socketio-file-upload');
 app.use(siofu.router);
 const assert = require('assert');
 const fs = require('fs');
+const redis = require("redis");
+const redis_client = redis.createClient();
 var bucket;
+
 
 
 //share variable
@@ -38,7 +40,7 @@ const client = mqtt.connect('mqtt://192.168.186.143:8088');
 
 let mongo;
 
-MongoClient.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom",function(err, db) {
+mongo_client.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom",function(err, db) {
     if (err) {
         console.log('MongoDB Connection Error. Please make sure that MongoDB is running.');
         process.exit(1);
@@ -53,6 +55,39 @@ let bucket = new mongojs.GridFSBucket(db, {
     bucketName: 'tracks'
 });*/
 
+redis_client.on("error", function (err){
+    console.log("Redis Error " + err);
+})
+
+redis_client.on("connect", function(){
+    console.log("Connected to Redis.");
+    create_redis_data();
+});
+
+function create_redis_data(){
+    let intent_keyword = ["hi", "Hello World!", "date", "curr_date", "six", 6, "sign out","Signed out. Please enter your real name to Sign in again.", "tomorrow", "tom_date" ];
+    redis_client.hdel('intent', "end", function(err, res){
+        /*console.log("redis del res: " + res);
+        console.log("redis del err: " + err);*/
+    });
+    redis_client.hmset('intent', intent_keyword, function(err, res){
+        /*console.log("redis res: " + res);
+        console.log("redis err: " + err);*/
+    });
+    //get all haskeys from a key
+    /*redis_client.hkeys('intent', function (err, replies) {
+        if (err) {
+            return console.error('error response - ' + err);
+        }
+        // 
+        console.log(replies.length + ' replies:');
+        replies.forEach(function (reply, i) {
+            console.log('    ' + i + ': ' + reply);
+        });
+        console.log(replies[0]);
+    });*/
+
+}
 
 //listen to MQTT broker connection
 client.on('connect', function (){
@@ -115,7 +150,7 @@ io.sockets.on('connection', function(socket) {
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        let myobj = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}]
+        //let myobj = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}]
         /*mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
             if (err) throw err;
             console.log("Number of documents inserted: " + res.insertedCount);
@@ -128,7 +163,7 @@ io.sockets.on('connection', function(socket) {
             });
         }*/
         mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
-            let socketID = username_data['socketID'];
+            socketID = username_data['socketID'];
             //console.log(res);
             if (res != null){
                 curr_username = username_data['msg'];
@@ -151,8 +186,46 @@ io.sockets.on('connection', function(socket) {
     })
 
     socket.on('chat_message', function(message) {
-        client.publish(topic_header+'chat_room/chat_message/username', socket.username);
-        client.publish(topic_header+'chat_room/chat_message/data', message)
+        
+        //let intent_keyword = ["hi", "Hello World!", "date", "curr_date", "exit", "exit", "Sign out","sign_out", "tomorrow", "tom_date" ];
+        redis_client.hget("intent", message['msg'].toLowerCase(), function(err, reply){
+            if (err) {
+                return console.error('error response - ' + err);
+            }
+            else{
+                if (reply){
+                    switch(message['msg'].toLowerCase()){
+                        case 'hi':
+                            io.to(socketID).emit('hi', reply);
+                            break;
+                        case 'date':
+                            io.to(socketID).emit('curr_date',"");
+                            break;
+                        case 'six':
+                            io.to(socketID).emit('six', reply);
+                            break;
+                        case  'sign out':
+                            socket.leave("online");
+                            io.to(socketID).emit('sign_out', reply);
+                            if (num_connect > 0){
+                                client.publish(topic_header+'chat_room/disconnect', socket.username);
+                            }
+                            break;
+                        case 'tomorrow':
+                            io.to(socketID).emit('tom_date', "");
+                            break;
+                        default:
+                            return console.error('error reply - ' + reply);
+                    }
+                
+                }
+                else{
+                    client.publish(topic_header+'chat_room/chat_message/username', socket.username);
+                    client.publish(topic_header+'chat_room/chat_message/data', message['msg']);
+                }
+                //console.log(reply);
+            }
+        });
         //console.log(message);
     });
 
@@ -176,7 +249,7 @@ io.sockets.on('connection', function(socket) {
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
                 console.log({success:false, error:error});
-                io.to(socketID).emit('email_msg_res', 'Fail to email Chatboard message.');
+                io.to(socketID).emit('email_msg_res', 'Fail to email Chatboard message.\n' + error);
             }
             else{
                 console.log('Message sent: ' + info.response);

@@ -65,14 +65,14 @@ redis_client.on("connect", function(){
 });
 
 function create_redis_data(){
-    let intent_keyword = ["hi", "Hello World!", "date", "curr_date", "exit", "Good Bye! window close after 2 seconds!", "sign out","Sucessful Sign Out !", "tomorrow", "tom_date" ];
+    let intent_keyword = ["hi", "Hello World!", "date", "curr_date", "six", 6, "sign out","Signed out. Please enter your real name to Sign in again.", "tomorrow", "tom_date" ];
     redis_client.hdel('intent', "end", function(err, res){
-        console.log("redis del res: " + res);
-        console.log("redis del err: " + err); 
+        /*console.log("redis del res: " + res);
+        console.log("redis del err: " + err);*/
     });
     redis_client.hmset('intent', intent_keyword, function(err, res){
-        console.log("redis res: " + res);
-        console.log("redis err: " + err); 
+        /*console.log("redis res: " + res);
+        console.log("redis err: " + err);*/
     });
     //get all haskeys from a key
     /*redis_client.hkeys('intent', function (err, replies) {
@@ -201,8 +201,8 @@ io.sockets.on('connection', function(socket) {
                         case 'date':
                             io.to(socketID).emit('curr_date',"");
                             break;
-                        case 'exit':
-                            io.to(socketID).emit('exit', reply);
+                        case 'six':
+                            io.to(socketID).emit('six', reply);
                             break;
                         case  'sign out':
                             socket.leave("online");
@@ -215,7 +215,7 @@ io.sockets.on('connection', function(socket) {
                             io.to(socketID).emit('tom_date', "");
                             break;
                         default:
-                            return console.error('error resply - ' + reply);
+                            return console.error('error reply - ' + reply);
                     }
                 
                 }
@@ -249,7 +249,7 @@ io.sockets.on('connection', function(socket) {
         transporter.sendMail(mailOptions, function(error, info){
             if(error){
                 console.log({success:false, error:error});
-                io.to(socketID).emit('email_msg_res', 'Fail to email Chatboard message.');
+                io.to(socketID).emit('email_msg_res', 'Fail to email Chatboard message.\n' + error);
             }
             else{
                 console.log('Message sent: ' + info.response);

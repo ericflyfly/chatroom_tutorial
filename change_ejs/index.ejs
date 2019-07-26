@@ -288,16 +288,15 @@
       socket.on('curr_date', function(data){
         system_msg(new Date().toString());
       });
-      socket.on('exit', function(data){
+      socket.on('six', function(data){
         system_msg(data);
-        setTimeout(function (){
-          close();
-        }, 2000);
-        
       });
       socket.on('sign_out', function(data){
         login = false;
+        $('#messages').empty();
         system_msg(data);
+        //setTimeout(function(){ location.reload(); }, 3000);
+        
       });
       socket.on('tom_date', function(data){
         system_msg(new Date(new Date().getTime() + (24 * 60 * 60 * 1000)));
