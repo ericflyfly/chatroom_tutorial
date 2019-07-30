@@ -17,8 +17,6 @@ const redis = require("redis");
 const redis_client = redis.createClient();
 var bucket;
 
-
-
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "";

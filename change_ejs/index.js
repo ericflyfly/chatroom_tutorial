@@ -15,8 +15,21 @@ const assert = require('assert');
 const fs = require('fs');
 const redis = require("redis");
 const redis_client = redis.createClient();
-var bucket;
+const voiceit2 = require('voiceit2-nodejs');
+const config = require('./config');
 
+var bucket;
+let myVoiceIt = new voiceit2(config.VOICEIT_API_KEY, config.VOICEIT_API_TOKEN);
+
+myVoiceIt.voiceVerification({
+    userId : config.VOICEIT_TEST_USERID,
+    contentLanguage : "en-US",
+    phrase : "Never forget tomorrow is a new day",
+    audioFilePath : "./ryan1.mp3"
+},(jsonResponse)=>{
+    //handle response
+    console.log(jsonResponse);
+});
 
 
 //share variable
@@ -28,12 +41,13 @@ var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
 let port_num = 8082;
+//let myVoiceIt = new voiceit2("key_8b56317c58b042a6970144b1955ac7d2", "tok_72d386db81444fdd86731f60ae4f4a2f");
+//let myVoiceIt = new voiceit2("usr_35d0150e38ec4dc5b24dffc0df36a261", "");
 
 //connect to frontend
 app.get('/', function(req, res) {
     res.render('index.ejs');
 });
-
 
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
 const client = mqtt.connect('mqtt://192.168.186.143:8088');
@@ -276,7 +290,6 @@ function file_to_mongo(file_Pathname, filename){
       console.log('file uploaded to Mongodb done!');
     });
 }
-
 
 //create http server
 const server = http.listen(port_num,function() {
