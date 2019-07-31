@@ -107,9 +107,8 @@
 
     <!--input type="checkbox" id="check_all"-->
     <button id="btn_email_msg" >Email Messages</button>
-    <button id="voiceEnrollmentBtn" >Enroll Voice</button>
-    <button id="voiceVerificationBtn" >Verify Voice</button>
-
+    <a href="/enroll_voice">Enroll Voice</a>    
+    <!--button id="voiceVerificationBtn" >Verify Voice</button-->
 
     <ul id="messages"></ul>
     <form action="/" method="POST" id="chatForm">
@@ -136,7 +135,6 @@
         socketID = socket.id;
         //console.log(socketID);
       });
-
 
       //edit bth_listen inner text and color
       function edit_btn_listen(txt, color){
@@ -347,11 +345,13 @@
         var chatHtml = document.getElementById("chat_status");
         chatHtml.innerText = msg + ' people in the chat....';
       });*/
+
       //set up voice recorder 
       const recorder = new MicRecorder({
         bitRate: 128
       });
-      //start recording
+
+      //start audio recording
       function startRecording() {
         recorder.start().then(() => {
           //console.log('start recording');

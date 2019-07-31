@@ -21,15 +21,16 @@ const config = require('./config');
 var bucket;
 let myVoiceIt = new voiceit2(config.VOICEIT_API_KEY, config.VOICEIT_API_TOKEN);
 
-myVoiceIt.voiceVerification({
+/*myVoiceIt.voiceVerification({
     userId : config.VOICEIT_TEST_USERID,
     contentLanguage : "en-US",
     phrase : "Never forget tomorrow is a new day",
-    audioFilePath : "./ryan1.mp3"
+    audioFilePath : "audio/ryan1.mp3"
 },(jsonResponse)=>{
     //handle response
     console.log(jsonResponse);
-});
+});*/
+
 
 
 //share variable
@@ -47,6 +48,10 @@ let port_num = 8082;
 //connect to frontend
 app.get('/', function(req, res) {
     res.render('index.ejs');
+});
+
+app.get('/enroll_voice', function(req, res) {
+    res.render('enroll_voice.ejs');
 });
 
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
@@ -146,7 +151,7 @@ client.on('message', function(topic, message){
 //socket.io communicate with frontend
 io.sockets.on('connection', function(socket) {
     const uploader = new siofu();
-    uploader.dir = path.join(__dirname, '/uploads');
+    uploader.dir = path.join(__dirname, '/audio');
     uploader.listen(socket);
 
     uploader.on("saved", function(event){
@@ -164,24 +169,29 @@ io.sockets.on('connection', function(socket) {
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        //let myobj = [{real_name: 'eric chan', nick_name: 'eric'}, {real_name: 'peter leung', nick_name: 'peter'}, {real_name: 'mandy wong', nick_name: 'mandy'}]
-        /*mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
-            if (err) throw err;
-            console.log("Number of documents inserted: " + res.insertedCount);
-        });*/
-        /*
-        for(var i = 0; i < 3; i++){
+        let myobj = [{real_name: 'eric chan', nick_name: 'eric', voiceitid: 'usr_35d0150e38ec4dc5b24dffc0df36a261'}, {real_name: 'peter leung', nick_name: 'peter', voiceitid: 'usr_4f46d694935645dbb64c88cea95c3a78'}, {real_name: 'mandy wong', nick_name: 'mandy', voiceitid: 'usr_d3fe3fc61a6e4b2094a0c56c905e73cc'}]
+        
+        //remove previous information from the chatroom
+        /*for(var i = 0; i < 3; i++){
             mongo.db("chatroom").collection("user").deleteMany(myobj[i], function(err, obj) {
                 if (err) throw err;
                 console.log(obj.result.n + " document(s) deleted");
             });
-        }*/
+        }
+
+        //add new information from the chatroom
+        mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
+            if (err) throw err;
+            console.log("Number of documents inserted: " + res.insertedCount);
+        });
+        */
+
         mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
             socketID = username_data['socketID'];
             //console.log(res);
             if (res != null){
                 curr_username = username_data['msg'];
-                console.log(res['nick_name']);
+                console.log(res['nick_name'] + ", voiceitid: " + res['voiceitid']);
                 socket.username = res['nick_name'];
                 num_connect += 1;
                 client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());

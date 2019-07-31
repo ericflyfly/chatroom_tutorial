@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Enroll Voice</title>
+    <style>
+    button{ width: 23%; background: rgb(130, 224, 255); border: none; padding: 10px; margin-left: 2%; }
+    </style>
+    <script src="../../socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="https://unpkg.com/mic-recorder-to-mp3"></script>
+    <script src='/siofu/client.js'></script>
+    <script src="../voiceit2.min.js"></script>
+  </head>
+  <body onload='load()'>
+    <input id="txt" autocomplete="off" autofocus="on" placeholder="Enter your user real name here" /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
+    <p>Status</p>
+    <button id="btn_listen"  type=button > Listen </button>
+
+    <script>
+        const recorder = new MicRecorder({
+            bitRate: 128
+        });
+        const uploader = new SocketIOFileUpload(socket);
+        var socket = io.connect();
+        var recording = false;
+        var login = false;
+        var real_name = "";
+
+        function load(){
+            socket.on('check_real_name', function(msg){
+                if (msg === "SUCC"){
+                    login = true;
+                }
+            });
+
+            while (login == false){
+                real_name = prompt('Please enter your user name..');
+                socket.emit('check_real_name', real_name );
+            }
+        }
+
+
+
+        function edit_btn_listen(txt, color){
+            $("#btn_listen").html(txt);
+            $("#btn_listen").css('background', color);
+        }
+
+        //start audio recording
+        function startRecording() {
+            recorder.start().then(() => {
+            //console.log('start recording');
+            }).catch((e) => {
+            console.error(e);
+            });
+        }
+        //stop recording and create a mp3 file
+        //**it create two extra empty (blob['size] > 0) audio file automatically
+        function stopRecording() {
+            recorder.stop().getMp3().then(([buffer, blob]) => {
+            if (blob['size'] > 0){
+                //console.log(buffer, blob);
+                const file = new File(buffer, user_realname+'.mp3', {
+                type: blob.type,
+                lastModified: Date.now()
+                });
+                //send files to node server
+                uploader.submitFiles([file]);
+            }
+            }).catch((e) => {
+            console.error(e);
+            });
+        }
+        //start voice recognition when "btn_listen" has been clicked
+        $("#btn_listen").on("mousedown", function(){
+            if (recognition != null && !recording){
+            if(login){
+                startRecording();
+            }
+            recording = true;
+            edit_btn_listen('Recording audio for enrollment...', 'lime');
+            }
+        }).on("mouseup mouseleave", function(){
+            //"mouseleave" when mouse leave the button
+            //execute when user release the mouse
+            if(login){
+                stopRecording();
+            }
+            recognition.stop();
+            recording = false;
+            edit_btn_listen('Start recording...', 'rgb(130, 224, 255)');
+        });
+    </script>
+  </body>
+</html>
