@@ -20,6 +20,7 @@ const config = require('./config');
 
 var bucket;
 let myVoiceIt = new voiceit2(config.VOICEIT_API_KEY, config.VOICEIT_API_TOKEN);
+let myobj = [{"real_name": 'eric chan', "nick_name": 'eric', "voiceitid": 'usr_35d0150e38ec4dc5b24dffc0df36a261'}, {real_name: 'peter leung', nick_name: 'peter', voiceitid: 'usr_4f46d694935645dbb64c88cea95c3a78'}, {real_name: 'mandy wong', nick_name: 'mandy', voiceitid: 'usr_d3fe3fc61a6e4b2094a0c56c905e73cc'}]
 
 /*myVoiceIt.voiceVerification({
     userId : config.VOICEIT_TEST_USERID,
@@ -30,8 +31,6 @@ let myVoiceIt = new voiceit2(config.VOICEIT_API_KEY, config.VOICEIT_API_TOKEN);
     //handle response
     console.log(jsonResponse);
 });*/
-
-
 
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
@@ -169,22 +168,20 @@ io.sockets.on('connection', function(socket) {
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        let myobj = [{real_name: 'eric chan', nick_name: 'eric', voiceitid: 'usr_35d0150e38ec4dc5b24dffc0df36a261'}, {real_name: 'peter leung', nick_name: 'peter', voiceitid: 'usr_4f46d694935645dbb64c88cea95c3a78'}, {real_name: 'mandy wong', nick_name: 'mandy', voiceitid: 'usr_d3fe3fc61a6e4b2094a0c56c905e73cc'}]
-        
         //remove previous information from the chatroom
         /*for(var i = 0; i < 3; i++){
             mongo.db("chatroom").collection("user").deleteMany(myobj[i], function(err, obj) {
                 if (err) throw err;
                 console.log(obj.result.n + " document(s) deleted");
             });
-        }
+        }*/
 
         //add new information from the chatroom
-        mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
+        /*mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
             if (err) throw err;
             console.log("Number of documents inserted: " + res.insertedCount);
-        });
-        */
+        });*/
+        
 
         mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
             socketID = username_data['socketID'];
@@ -251,6 +248,25 @@ io.sockets.on('connection', function(socket) {
             }
         });
         //console.log(message);
+    });
+
+    //check username for enrollment
+    socket.on('check_real_name', function (data){
+        mongo.db("chatroom").collection("user").findOne({real_name: data['real_name']}, function(err, res){
+            let socketID = data['socketid'];
+            if (res != null){
+                let enroll_num = 0;
+                myVoiceIt.getAllVoiceEnrollments({
+                    userId : socketID
+                  },(jsonResponse)=>{
+                    enroll_num = jsonResponse["count"];
+                  });
+                io.to(socketID).emit('check_real_name_res', {'msg': "SUCC", 'voiceitid': res["voiceitid"], 'enroll_num': enroll_num});
+            }
+            else{
+                io.to(socketID).emit('check_real_name_res',{'msg': "FAIL"});
+            }
+        });
     });
 
     //receive an index of messages that need to email

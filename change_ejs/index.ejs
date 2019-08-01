@@ -92,11 +92,17 @@
 
     </style>
     <script src="../../socket.io/socket.io.js"></script>
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <!--script src="https://code.jquery.com/jquery-1.12.4.min.js"></script-->
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script src="https://unpkg.com/mic-recorder-to-mp3"></script>
     <script src='/siofu/client.js'></script>
     <script src="../voiceit2.min.js"></script>
+    <!-- Remember to include jQuery :) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
+
+    <!-- jQuery Modal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
   </head>
   <body onload='load()'>
 
@@ -107,7 +113,19 @@
 
     <!--input type="checkbox" id="check_all"-->
     <button id="btn_email_msg" >Email Messages</button>
-    <a href="/enroll_voice">Enroll Voice</a>    
+    <!--a href="/enroll_voice">Enroll Voice</a-->  
+    <!-- Modal HTML embedded directly into document -->
+    <div id="ex1" class="modal">
+      <form action="/" method="POST">
+          <label for="txt"> Username: </label>
+          <input id="txt" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
+          <p id="status">Status: </p>
+          <button id="btn_listen"  type=button > Start Recording </button>
+      </form>
+    </div>
+  
+    <!-- Link to open the modal -->
+    <p><a href="#ex1" rel="modal:open">Open Modal</a></p>
     <!--button id="voiceVerificationBtn" >Verify Voice</button-->
 
     <ul id="messages"></ul>

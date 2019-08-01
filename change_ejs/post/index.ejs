@@ -5,9 +5,9 @@
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font: 16px Helvetica, Arial; }
-      form { background: #fff; padding: 3px; position: fixed; bottom: 0; width: 100%; border-color: #000; border-top-style: solid; border-top-width: 1px;}
-      form input { font-size:14px; border-style: solid; border-width: 1px; padding: 10px; width: 70%; margin-right: .5%; }
-      form button { width: 23%; background: rgb(130, 224, 255); border: none; padding: 10px; margin-left: 2%; }
+      #chat_form { background: #fff; padding: 3px; position: fixed; bottom: 0; width: 100%; border-color: #000; border-top-style: solid; border-top-width: 1px;}
+      #chat_form input { font-size:14px; border-style: solid; border-width: 1px; padding: 10px; width: 70%; margin-right: .5%; }
+      #chat_form button { width: 23%; background: rgb(130, 224, 255); border: none; padding: 10px; margin-left: 2%; }
       #messages { list-style-type: none; margin: 0; padding: 0; }
       #messages li { padding: 5px 10px; }
       #messages li:nth-child(odd) { background: #ddd; }
@@ -92,10 +92,17 @@
 
     </style>
     <script src="../../socket.io/socket.io.js"></script>
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <!--script src="https://code.jquery.com/jquery-1.12.4.min.js"></script-->
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script src="https://unpkg.com/mic-recorder-to-mp3"></script>
     <script src='/siofu/client.js'></script>
+    <script src="../voiceit2.min.js"></script>
+    <!-- Remember to include jQuery :) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
+
+    <!-- jQuery Modal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
   </head>
   <body onload='load()'>
 
@@ -106,11 +113,21 @@
 
     <!--input type="checkbox" id="check_all"-->
     <button id="btn_email_msg" >Email Messages</button>
-    <a href="/enroll_voice">Enroll Voice</a>    
+    <!--a href="/enroll_voice">Enroll Voice</a-->  
+    <!-- Modal HTML embedded directly into document -->
+    <div id="enroll_window" class="modal">
+      <label for="txt"> Username: </label>
+      <input id="enroll_username" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "btn_enroll_send">Send</button>
+      <p id="status">Status: </p>
+      <button id="btn_listen"  type=button > Start Recording </button>
+    </div>
+  
+    <!-- Link to open the modal -->
+    <p><a href="#enroll_window" rel="modal:open">Enroll</a></p>
     <!--button id="voiceVerificationBtn" >Verify Voice</button-->
 
     <ul id="messages"></ul>
-    <form action="/" method="POST" id="chatForm">
+    <form action="/" method="POST" id="chat_form">
       <!--p id='chat_status' color="gray">no people in the ChatRoom</p-->
       <input id="txt" autocomplete="off" autofocus="on" placeholder="type your message here..." /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
       <button id="btn_listen"  type=button > Listen </button>
@@ -186,6 +203,7 @@
           $("#btn_listen").attr('disabled', true);
         }
         $('#messages').append($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
+        setupFrontEnd();
       }
       
       //start voice recognition when "btn_listen" has been clicked
@@ -280,7 +298,38 @@
         });
       });
 
-      
+      function setupFrontEnd() {
+        window.myVoiceIt = VoiceIt2.initialize('example_endpoint/');
+        document.querySelector('#voiceEnrollmentBtn').addEventListener('click', function() {
+          myVoiceIt.encapsulatedVoiceEnrollment({
+            contentLanguage:'en-US',
+            phrase:'never forget tomorrow is a new day',
+            completionCallback:function(success){
+              if(success){
+                showMessage('Voice Enrollments Done!');
+              } else {
+                showMessage('Voice Enrollments Failed!', true);
+              }
+            }
+          });
+        });
+
+        document.querySelector('#voiceVerificationBtn').addEventListener('click', function() {
+          myVoiceIt.encapsulatedVoiceVerification({
+            contentLanguage:'en-US',
+            phrase:'never forget tomorrow is a new day',
+            needEnrollmentsCallback:function(){
+              // Three voice enrollments needed
+              showForTime('#enrollVoice', 1600);
+            },
+            completionCallback:function(success){
+              if(success){
+                takeToConsole();
+              }
+            }
+          });
+        });
+      }
 
       function system_msg(msg){
         $('#messages').append($('<li>').html('⚫ <i> ' + msg + '</i>'));
