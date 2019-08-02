@@ -96,7 +96,6 @@
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script src="https://unpkg.com/mic-recorder-to-mp3"></script>
     <script src='/siofu/client.js'></script>
-    <script src="../voiceit2.min.js"></script>
     <!-- Remember to include jQuery :) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
 
@@ -113,26 +112,38 @@
 
     <!--input type="checkbox" id="check_all"-->
     <button id="btn_email_msg" >Email Messages</button>
+    <!-- Link to open the modal -->
+    <p><a href="#enroll_window" rel="modal:open">Enroll</a></p>
+    <p><a href="#voice_login_window" rel="modal:open">Voice Verification</a></p>
     <!--a href="/enroll_voice">Enroll Voice</a-->  
     <!-- Modal HTML embedded directly into document -->
     <div id="enroll_window" class="modal">
       <label for="txt"> Username: </label>
-      <input id="enroll_username" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "btn_enroll_send">Send</button>
+      <input id="enroll_username" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "enroll_btn_send">Send</button>
       <p id="status">Status: </p>
-      <button id="btn_listen"  type=button > Start Recording </button>
+      <p>Enrollment Phrase : "Never forget tomorrow is a new day" </p>
+      <button id="enroll_btn_listen"  type=button > Start Recording Enrollment audio </button>
     </div>
-  
-    <!-- Link to open the modal -->
-    <p><a href="#enroll_window" rel="modal:open">Enroll</a></p>
+
+    <div id="voice_login_window" class="modal">
+      <label for="txt"> Username: </label>
+      <input id="voice_login_username" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "voice_login_btn_send">Send</button>
+      <p id="voice_login_status">Status: </p>
+      <p>Verification Phrase : "Never forget tomorrow is a new day" </p>
+      <button id="voice_login_btn_listen"  type=button > Start Recording Verification audio </button>
+    </div>
+
     <!--button id="voiceVerificationBtn" >Verify Voice</button-->
 
     <ul id="messages"></ul>
+
     <form action="/" method="POST" id="chat_form">
       <!--p id='chat_status' color="gray">no people in the ChatRoom</p-->
       <input id="txt" autocomplete="off" autofocus="on" placeholder="type your message here..." /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
       <button id="btn_listen"  type=button > Listen </button>
       <ul id="playlist"></ul>
     </form>
+
     <script>
       //init global variables for voice recoginition
       var recognition = null;
@@ -141,15 +152,15 @@
       var login = false;
       var user_realname;
       let socketID = "";
+      let voiceitid = "";
+      let login_voiceitid;
       //var socket = io.connect('http://192.198.186.143:8080');
       var socket = io.connect();
       //set up socketio-file-upload
       const uploader = new SocketIOFileUpload(socket);
-
       //when socket connected
       socket.on('connect', function(){
         socketID = socket.id;
-        //console.log(socketID);
       });
 
       //edit bth_listen inner text and color
@@ -160,6 +171,8 @@
       
       //call this function when the page start to load
       function load(){
+        $('#enroll_btn_listen').prop("disabled", true);
+        $('#voice_login_btn_listen').prop("disabled", true);
         //setting recognition interface
         window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
         if ('SpeechRecognition' in window){
@@ -203,7 +216,6 @@
           $("#btn_listen").attr('disabled', true);
         }
         $('#messages').append($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
-        setupFrontEnd();
       }
       
       //start voice recognition when "btn_listen" has been clicked
@@ -240,6 +252,8 @@
             });
         }
       });
+
+      
 
       //send messages and the destination email to server
       $("#btn_email_msg").click( function(){
@@ -289,6 +303,7 @@
       });
       // append text if someone is online
       socket.on('is_online', function(data) {
+        console.log(data);
         $('#messages').append($('<li>').html(data['data']));
         user_realname = data['curr_username'];
         login = true;
@@ -297,39 +312,6 @@
           alert(msg);
         });
       });
-
-      function setupFrontEnd() {
-        window.myVoiceIt = VoiceIt2.initialize('example_endpoint/');
-        document.querySelector('#voiceEnrollmentBtn').addEventListener('click', function() {
-          myVoiceIt.encapsulatedVoiceEnrollment({
-            contentLanguage:'en-US',
-            phrase:'never forget tomorrow is a new day',
-            completionCallback:function(success){
-              if(success){
-                showMessage('Voice Enrollments Done!');
-              } else {
-                showMessage('Voice Enrollments Failed!', true);
-              }
-            }
-          });
-        });
-
-        document.querySelector('#voiceVerificationBtn').addEventListener('click', function() {
-          myVoiceIt.encapsulatedVoiceVerification({
-            contentLanguage:'en-US',
-            phrase:'never forget tomorrow is a new day',
-            needEnrollmentsCallback:function(){
-              // Three voice enrollments needed
-              showForTime('#enrollVoice', 1600);
-            },
-            completionCallback:function(success){
-              if(success){
-                takeToConsole();
-              }
-            }
-          });
-        });
-      }
 
       function system_msg(msg){
         $('#messages').append($('<li>').html('⚫ <i> ' + msg + '</i>'));
@@ -398,6 +380,91 @@
           console.error(e);
         });
       }
+
+      //sub the result of check real name
+      socket.on('check_real_name_res', function(data){
+        console.log(data);
+        if (data['msg'] === "SUCC"){
+            voiceitid = data['voiceitid'];
+            //console.log(data['voiceitid'])
+            $('#enroll_username').prop("disabled", true);
+            $('#enroll_btn_send').prop("disabled", true);
+            $("#enroll_btn_listen").prop("disabled", false);
+            $("#status").prop("innerHTML", "Status: You have " + data['enroll_num'] + " audio enrolled (Require at least 3 audios).");
+        }
+        else{
+            $('#enroll_username').val('');
+        }
+      });
+
+
+      //listen to btn_enroll_send button click event
+      $("#enroll_btn_send").on("click", function(){
+        socket.emit('check_real_name', {"socketid": socketID, "real_name": $('#enroll_username').val().toLowerCase()} );
+      });
+
+      //start voice recognition when "btn_listen" has been clicked
+      $("#enroll_btn_listen").on("mousedown", function(){
+        if (!recording){
+          socket.emit('enroll_audio', {'socketid': socketID, 'voiceitid': voiceitid});
+          startRecording();
+          recording = true;
+        }
+      }).on("mouseup mouseleave", function(){
+          //"mouseleave" when mouse leave the button
+          //execute when user release the mouse
+          stopRecording();
+          recording = false;
+      });
+
+      //listen to server response on the result of voice enrollment
+      socket.on('enroll_audio_res', function(data){
+        $('#status').prop('innerHTML', 'Status: ' + data['msg']);
+      });
+
+      //sub the result of check real name
+      socket.on('check_real_name_login_res', function(data){
+        console.log(data);
+        if (data['msg'] === "SUCC"){
+          login_voiceitid = data['voiceitid'];
+            //console.log(data['voiceitid'])
+            $('#voice_login_username').prop("disabled", true);
+            $("#voice_login_btn_listen").prop("disabled", false);
+            $("#voice_login_btn_send").prop("disabled", true);
+            $("#voice_login_status").prop("innerHTML", "Status: You have " + data['enroll_num'] + " audio enrolled (Require at least 3 audios).");
+        }
+        else{
+            $('#voice_login_username').val('');
+        }
+      });
+
+      //listen to btn_enroll_send button click event
+      $("#voice_login_btn_send").on("click", function(){
+        socket.emit('check_real_name_login', {"socketid": socketID, "real_name": $('#voice_login_username').val().toLowerCase()} );
+      });
+
+      //start voice recognition when "btn_listen" has been clicked
+      $("#voice_login_btn_listen").on("mousedown", function(){
+        if (!recording){
+          socket.emit('voice_login_audio', {'socketid': socketID, 'voiceitid': login_voiceitid, 'real_name': $('#voice_login_username').val().toLowerCase()});
+          startRecording();
+          recording = true;
+        }
+      }).on("mouseup mouseleave", function(){
+          //"mouseleave" when mouse leave the button
+          //execute when user release the mouse
+          stopRecording();
+          recording = false;
+      });
+
+      //listen to server response on the result of voice enrollment
+      socket.on('voice_login_audio_res', function(data){
+        $('#voice_login_status').prop('innerHTML', 'Status: ' + data['msg']);
+        if (data['res'] === "SUCC"){
+          $("#voice_login_btn_listen").prop("disabled", true);
+        }
+      });
+
 
 
     </script>

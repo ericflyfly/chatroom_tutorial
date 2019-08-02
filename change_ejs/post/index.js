@@ -22,16 +22,6 @@ var bucket;
 let myVoiceIt = new voiceit2(config.VOICEIT_API_KEY, config.VOICEIT_API_TOKEN);
 let myobj = [{"real_name": 'eric chan', "nick_name": 'eric', "voiceitid": 'usr_35d0150e38ec4dc5b24dffc0df36a261'}, {real_name: 'peter leung', nick_name: 'peter', voiceitid: 'usr_4f46d694935645dbb64c88cea95c3a78'}, {real_name: 'mandy wong', nick_name: 'mandy', voiceitid: 'usr_d3fe3fc61a6e4b2094a0c56c905e73cc'}]
 
-/*myVoiceIt.voiceVerification({
-    userId : config.VOICEIT_TEST_USERID,
-    contentLanguage : "en-US",
-    phrase : "Never forget tomorrow is a new day",
-    audioFilePath : "audio/ryan1.mp3"
-},(jsonResponse)=>{
-    //handle response
-    console.log(jsonResponse);
-});*/
-
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
 const topic_header = "";
@@ -41,6 +31,10 @@ var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
 let port_num = 8080;
+let audio_action = 0;
+let audio_action_arr = [null, null, null];
+let audio_action_socketid = [null, null, null];
+let real_name_voiceit;
 //let myVoiceIt = new voiceit2("key_8b56317c58b042a6970144b1955ac7d2", "tok_72d386db81444fdd86731f60ae4f4a2f");
 //let myVoiceIt = new voiceit2("usr_35d0150e38ec4dc5b24dffc0df36a261", "");
 
@@ -152,18 +146,80 @@ io.sockets.on('connection', function(socket) {
     const uploader = new siofu();
     uploader.dir = path.join(__dirname, '/audio');
     uploader.listen(socket);
-
     uploader.on("saved", function(event){
-        console.log(event['file']['pathName']);
-        //console.log(event.file.name);
-        //send mp3 from local path to mongodb
-        file_to_mongo(event['file']['pathName'], event.file.name);
-        //after mp3 file store in mongodb, remove it from the local directory
+        if (audio_action == 1){
+            myVoiceIt.createVoiceEnrollment({
+                userId : audio_action_arr[1],
+                contentLanguage : "en-US",
+                phrase : "Never forget tomorrow is a new day",
+                audioFilePath : event['file']['pathName']
+            },(jsonResponse)=>{
+                //handle response
+                io.to(audio_action_socketid[1]).emit('enroll_audio_res', {'msg': jsonResponse['message']});
+                audio_action_arr[1] = null;
+                //audio_action_socketid[1] = null;
+            });
+        }
+        else if (audio_action == 2){
+            myVoiceIt.voiceVerification({
+                userId : audio_action_arr[2],
+                contentLanguage : "en-US",
+                phrase : "Never forget tomorrow is a new day",
+                audioFilePath : event['file']['pathName']
+            },(jsonResponse)=>{
+                //handle response
+                let msg = jsonResponse['message'];
+                let res = "FAIL";
+                if (jsonResponse['confidence'] > 75){
+                    msg = "You have logged in";
+                    res = "SUCC";
+                    mongo.db("chatroom").collection("user").findOne({real_name: real_name_voiceit}, function(err, res){
+                        console.log(res);
+                        if (res != null){
+                            curr_username = real_name_voiceit;
+                            socket.username = res['nick_name'];
+                            num_connect += 1;
+                            client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
+                            io.to(audio_action_socketid[2]).emit('is_online', {'curr_username': curr_username, 'data': '🔵 <i>' + socket.username + ' join the chat..</i>' });
+                        }
+                        else{
+                            io.to(audio_action_socketid[2]).emit('login_fail',"");
+                        }
+                    });
+                }
+                io.to(audio_action_socketid[2]).emit('voice_login_audio_res', {'msg': msg, 'res': res});
+                audio_action_arr[2] = null;
+                //audio_action_socketid[2] = null;
+            });
+        }
+        else{
+            //console.log(event.file.name);
+            console.log(event['file']['pathName']);
+            //send mp3 from local path to mongodb
+            file_to_mongo(event['file']['pathName'], event.file.name);
+            //after mp3 file store in mongodb, remove it from the local directory
+
+        }
         fs.unlink(event['file']['pathName'], function(err){
             if (err) throw err;
             console.log(event['file']['pathName']+' Deleted');
         });
+        audio_action = 0;
     });
+
+    socket.on('enroll_audio', function(data){
+        audio_action = 1;
+        audio_action_arr[audio_action] = data['voiceitid'];
+        audio_action_socketid[audio_action] = data['socketid'];
+    });
+
+    socket.on('voice_login_audio', function(data){
+        audio_action = 2;
+        audio_action_arr[audio_action] = data['voiceitid'];
+        audio_action_socketid[audio_action] = data['socketid'];
+        real_name_voiceit = data['real_name'];
+    });
+    
 
     //console.log(client);
     socket.on('username', function(username_data) {
@@ -188,7 +244,7 @@ io.sockets.on('connection', function(socket) {
             //console.log(res);
             if (res != null){
                 curr_username = username_data['msg'];
-                console.log(res['nick_name'] + ", voiceitid: " + res['voiceitid']);
+                //console.log(res['nick_name'] + ", voiceitid: " + res['voiceitid']);
                 socket.username = res['nick_name'];
                 num_connect += 1;
                 client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
@@ -255,19 +311,35 @@ io.sockets.on('connection', function(socket) {
         mongo.db("chatroom").collection("user").findOne({real_name: data['real_name']}, function(err, res){
             let socketID = data['socketid'];
             if (res != null){
-                let enroll_num = 0;
                 myVoiceIt.getAllVoiceEnrollments({
-                    userId : socketID
+                    userId : res["voiceitid"]
                   },(jsonResponse)=>{
-                    enroll_num = jsonResponse["count"];
+                    io.to(socketID).emit('check_real_name_res', {'msg': "SUCC", 'voiceitid': res["voiceitid"], 'enroll_num': jsonResponse["count"]});
                   });
-                io.to(socketID).emit('check_real_name_res', {'msg': "SUCC", 'voiceitid': res["voiceitid"], 'enroll_num': enroll_num});
             }
             else{
-                io.to(socketID).emit('check_real_name_res',{'msg': "FAIL"});
+                io.to(socketID).emit('check_real_name_res', {'msg': "FAIL"});
             }
         });
     });
+
+    //check username for voice verification
+    socket.on('check_real_name_login', function (data){
+        mongo.db("chatroom").collection("user").findOne({real_name: data['real_name']}, function(err, res){
+            let socketID = data['socketid'];
+            if (res != null){
+                myVoiceIt.getAllVoiceEnrollments({
+                    userId : res["voiceitid"]
+                  },(jsonResponse)=>{
+                    io.to(socketID).emit('check_real_name_login_res', {'msg': "SUCC", 'voiceitid': res["voiceitid"], 'enroll_num': jsonResponse["count"]});
+                  });
+            }
+            else{
+                io.to(socketID).emit('check_real_name_res', {'msg': "FAIL"});
+            }
+        });
+    });
+
 
     //receive an index of messages that need to email
     socket.on('email_msg', function (message){
