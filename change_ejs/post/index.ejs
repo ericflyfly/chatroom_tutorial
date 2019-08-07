@@ -88,6 +88,10 @@
         transform: rotate(45deg);
       }
 
+      .inline-block-child {
+        display: inline-block;
+        margin-left: 2%;
+      }
 
 
     </style>
@@ -98,7 +102,6 @@
     <script src='/siofu/client.js'></script>
     <!-- Remember to include jQuery :) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
-
     <!-- jQuery Modal -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
@@ -111,10 +114,15 @@
     </label>
 
     <!--input type="checkbox" id="check_all"-->
-    <button id="btn_email_msg" >Email Messages</button>
+
     <!-- Link to open the modal -->
-    <p><a href="#enroll_window" rel="modal:open">Enroll</a></p>
-    <p><a href="#voice_login_window" rel="modal:open">Voice Verification</a></p>
+    <div class='parent'>
+      <div class='child inline-block-child'><button id="btn_email_msg" >Email Messages</button></div>
+      <div class='child inline-block-child'><p><a href="#enroll_window" rel="modal:open">Enroll</a></p></div>
+      <div class='child inline-block-child'><p><a href="#voice_login_window" rel="modal:open">Voice Verification</a></p></div>
+    </div>
+    
+
     <!--a href="/enroll_voice">Enroll Voice</a-->  
     <!-- Modal HTML embedded directly into document -->
     <div id="enroll_window" class="modal">
@@ -424,7 +432,7 @@
 
       //sub the result of check real name
       socket.on('check_real_name_login_res', function(data){
-        console.log(data);
+        //console.log(data);
         if (data['msg'] === "SUCC"){
           login_voiceitid = data['voiceitid'];
             //console.log(data['voiceitid'])

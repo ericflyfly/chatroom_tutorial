@@ -43,10 +43,6 @@ app.get('/', function(req, res) {
     res.render('index.ejs');
 });
 
-app.get('/enroll_voice', function(req, res) {
-    res.render('enroll_voice.ejs');
-});
-
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
 const client = mqtt.connect('mqtt://192.168.186.143:8088');
 
@@ -140,6 +136,8 @@ client.on('message', function(topic, message){
             console.log('\'%s\' topic not handled --> ', topic);
     }
 });
+
+
 
 //socket.io communicate with frontend
 io.sockets.on('connection', function(socket) {
@@ -237,7 +235,6 @@ io.sockets.on('connection', function(socket) {
             if (err) throw err;
             console.log("Number of documents inserted: " + res.insertedCount);
         });*/
-        
 
         mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
             socketID = username_data['socketID'];
