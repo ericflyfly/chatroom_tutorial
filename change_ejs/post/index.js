@@ -11,16 +11,20 @@ const path = require('path');
 //set up socketio-file-upload modules
 const siofu = require('socketio-file-upload');
 app.use(siofu.router);
+app.use(express.json());
 const assert = require('assert');
 const fs = require('fs');
 const redis = require("redis");
 const redis_client = redis.createClient();
 const voiceit2 = require('voiceit2-nodejs');
 const config = require('./config');
+const Joi = require('joi');
 
 var bucket;
 let myVoiceIt = new voiceit2(config.VOICEIT_API_KEY, config.VOICEIT_API_TOKEN);
-let myobj = [{"real_name": 'eric chan', "nick_name": 'eric', "voiceitid": 'usr_35d0150e38ec4dc5b24dffc0df36a261'}, {real_name: 'peter leung', nick_name: 'peter', voiceitid: 'usr_4f46d694935645dbb64c88cea95c3a78'}, {real_name: 'mandy wong', nick_name: 'mandy', voiceitid: 'usr_d3fe3fc61a6e4b2094a0c56c905e73cc'}]
+let myobj = [{"real_name": 'eric chan', "nick_name": 'eric', "voiceitid": 'usr_35d0150e38ec4dc5b24dffc0df36a261'}, 
+{real_name: 'peter leung', nick_name: 'peter', voiceitid: 'usr_4f46d694935645dbb64c88cea95c3a78'}, 
+{real_name: 'mandy wong', nick_name: 'mandy', voiceitid: 'usr_d3fe3fc61a6e4b2094a0c56c905e73cc'}]
 
 //share variable
 const transporter = nodemailer.createTransport('smtps://cuhk%2eccl%40gmail.com:%21ccl123%21@smtp.gmail.com');
@@ -30,7 +34,7 @@ let curr_username;
 var num_connect = 0;
 let msg_arr = [];
 let msg_username = '';
-let port_num = 8080;
+let port_num = 8080; 
 let audio_action = 0;
 let audio_action_arr = [null, null, null];
 let audio_action_socketid = [null, null, null];
@@ -41,6 +45,43 @@ let real_name_voiceit;
 //connect to frontend
 app.get('/', function(req, res) {
     res.render('index.ejs');
+});
+
+//api for developer to get list of users information or one sepecific user by real_name
+app.get('/api/user', function(req, res){
+    if (req.query.real_name != null){
+        mongo.db("chatroom").collection("user").findOne({real_name: req.query.real_name}, function(err, mongo_res){
+            if (!mongo_res) res.status(404).send('The user with the given real_name was not found');
+            else res.send(mongo_res);
+        });
+    }
+    else{
+        mongo.db("chatroom").collection("user").find({}).toArray(function(err, mongo_res){
+            res.send(mongo_res);
+        });
+    }
+});
+
+
+//***continue here to post api...need to validate user real_name and create an user for the developer. ***/
+app.post('/api/user', function(req, res){
+    const schema = {
+        real_name: Joi.string().min(1).required()
+    };
+
+    const result = Joi.validate(req.body, schema);
+
+    if (result.error){
+        res.status(400).send(result.error.details[0].message);
+        //console.log(result.error);
+        return;
+    }
+    const user = {
+        real_name: req.body.real_name
+    }
+    user_list.push(user);
+    res.send(user);
+    console.log(user_list);
 });
 
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
