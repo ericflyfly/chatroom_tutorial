@@ -47,41 +47,105 @@ app.get('/', function(req, res) {
     res.render('index.ejs');
 });
 
-//api for developer to get list of users information or one sepecific user by real_name
+//get api for developer to get list of users information or one sepecific user by real_name
 app.get('/api/user', function(req, res){
     if (req.query.real_name != null){
         mongo.db("chatroom").collection("user").findOne({real_name: req.query.real_name}, function(err, mongo_res){
+            if (err) throw err;
             if (!mongo_res) res.status(404).send('The user with the given real_name was not found');
             else res.send(mongo_res);
         });
     }
     else{
         mongo.db("chatroom").collection("user").find({}).toArray(function(err, mongo_res){
+            if (err) throw err;
             res.send(mongo_res);
         });
     }
 });
 
-
-//***continue here to post api...need to validate user real_name and create an user for the developer. ***/
+//post api for developer to add a new user with custom real_name
 app.post('/api/user', function(req, res){
+    //Invalid input return 400 - Bad request
     const schema = {
-        real_name: Joi.string().min(1).required()
+        real_name: Joi.string().min(1).required(),
+        nick_name: Joi.string().min(1).required()
     };
-
+    
     const result = Joi.validate(req.body, schema);
 
     if (result.error){
         res.status(400).send(result.error.details[0].message);
-        //console.log(result.error);
         return;
     }
-    const user = {
-        real_name: req.body.real_name
-    }
-    user_list.push(user);
-    res.send(user);
-    console.log(user_list);
+    //Invalid input (identical real_name) return 400 - Bad request
+    req.body.real_name = req.body.real_name.toLowerCase();
+    mongo.db("chatroom").collection("user").findOne({real_name: req.body.real_name}, function(err, mongo_res){
+        if (mongo_res){
+            res.status(400).send('The given \"real_name\" is taken.');
+        }
+        else{
+            myVoiceIt.createUser((jsonResponse)=>{
+                //construct a new user information
+                const user = {
+                    real_name: req.body.real_name,
+                    nick_name: req.body.nick_name,
+                    voiceitid: jsonResponse.userId,
+                }
+                //create a user document in mongodb
+                mongo.db("chatroom").collection("user").insertOne(user, function(err, insert_res) {
+                    if (err) throw err;
+                    console.log("InsertOne user result: " + insert_res);
+                    //return the completed user info
+                    res.send(user);
+                });
+            })
+        }
+    });
+});
+
+//put api for developer to update nick_name of a user
+app.put('/api/user/:real_name', function (req, res){
+    //validate nick_name
+    const schema = {
+        nick_name: Joi.string().min(1).required()
+    };
+
+    const result = Joi.validate(req.body, schema);
+
+    if (result.error) return res.status(400).send(result.error.details[0].message);
+    //Update user nick_name by real_name
+    req.params.real_name = req.params.real_name.toLowerCase()
+    mongo.db("chatroom").collection("user").updateOne({"real_name": req.params.real_name},{$set: {"nick_name": req.body.nick_name}}, function(err, update_res) {
+        if (err) throw err;
+        console.log("UpdateOne user result: " + update_res);
+        //if any match found
+        if (JSON.parse(update_res).n > 0) res.send(req.params.real_name+" modified nick_name as "+req.body.nick_name);
+        else res.status(404).send(req.params.real_name+" is not found.");
+    });
+});
+
+//delete api for develeoper to remove user from DB
+app.delete('/api/user/:real_name', function (req, res){
+    req.params.real_name = req.params.real_name.toLowerCase();
+    mongo.db("chatroom").collection("user").findOne({real_name: req.params.real_name}, function(err, mongo_res){
+        if (err) throw err;
+        //console.log(mongo_res);
+        if (!mongo_res) return res.status(404).send('The user with given real_name was not found');
+        else {
+            myVoiceIt.deleteUser({
+                userId : mongo_res.voiceitid
+            },(jsonResponse)=>{
+                console.log(jsonResponse);
+            });
+            mongo.db("chatroom").collection("user").deleteOne({real_name: req.params.real_name}, function(err, delete_res){
+                if (err) throw err;
+                console.log(delete_res.result);
+                res.send("Remove "+ req.params.real_name.toLowerCase() + " successfully.")
+            });
+        }
+    });
+
 });
 
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
@@ -110,7 +174,7 @@ redis_client.on("error", function (err){
 
 redis_client.on("connect", function(){
     console.log("Connected to Redis.");
-    create_redis_data();
+    //create_redis_data();
 });
 
 function create_redis_data(){
