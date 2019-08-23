@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Node.js Group Chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 16px Helvetica, Arial; }
+      #chat_form { background: #fff; padding: 3px; position: fixed; bottom: 0; width: 100%; border-color: #000; border-top-style: solid; border-top-width: 1px;}
+      #chat_form input { font-size:14px; border-style: solid; border-width: 1px; padding: 10px; width: 70%; margin-right: .5%; }
+      #chat_form button { width: 23%; background: rgb(130, 224, 255); border: none; padding: 10px; margin-left: 2%; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #ddd; }
+      #chat_status {margin-bottom: 1%; margin-left: 1%;}
+      #btn_email_msg {margin-left: 43px; margin-bottom: 1%;}
+      #check_all_container{margin-left: 10px; margin-top: 10px !important; margin-bottom:1px !important;}
+
+      /* The container of checkbox*/
+      .container {
+        display: block;
+        position: relative;
+        padding-left: 35px;
+        margin-bottom: 1px;
+        cursor: pointer;
+        font-size: 15px;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      /* Hide the browser's default checkbox */
+      .container input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+        height: 0;
+        width: 0;
+      }
+
+      /* Create a custom checkbox */
+      .checkmark {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 17px;
+        width: 17px;
+        background-color: white;
+        border: solid #ccc;
+        border-width: 1.5px 1.5px 1.5px 1.5px ;
+        border-radius: 3.5px;
+        margin-left: 2px;
+      }
+
+      /* On mouse-over, add a grey background color */
+      .container:hover input ~ .checkmark {
+        border: solid black;
+      }
+
+      /* When the checkbox is checked, add a blue background */
+      .container input:checked ~ .checkmark {
+        background-color: black;
+        border: solid black;
+      }
+
+      /* Create the checkmark/indicator (hidden when not checked) */
+      .checkmark:after {
+        content: "";
+        position: absolute;
+        display: none;
+      }
+
+      /* Show the checkmark when checked */
+      .container input:checked ~ .checkmark:after {
+        display: block;
+      }
+
+      /* Style the checkmark/indicator */
+      .container .checkmark:after {
+        left: 2px;
+        width: 3px;
+        bottom: 1px;
+        height: 8.5px;
+        border: solid white;
+        border-width: 0 3px 3px 0;
+        -webkit-transform: rotate(45deg);
+        -ms-transform: rotate(45deg);
+        transform: rotate(45deg);
+      }
+
+      .inline-block-child {
+        display: inline-block;
+        margin-left: 2%;
+      }
+
+
+    </style>
+    <script src="../../socket.io/socket.io.js"></script>
+    <!--script src="https://code.jquery.com/jquery-1.12.4.min.js"></script-->
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="https://unpkg.com/mic-recorder-to-mp3"></script>
+    <script src='/siofu/client.js'></script>
+    <!-- Remember to include jQuery :) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
+    <!-- jQuery Modal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
+  </head>
+  <body onload='load()'>
+
+    <label class="container" id="check_all_container">
+      <input type="checkbox" id="check_all">
+      <span class="checkmark"></span>
+    </label>
+
+    <!--input type="checkbox" id="check_all"-->
+
+    <!-- Link to open the modal -->
+    <div class='parent'>
+      <div class='child inline-block-child'><button id="btn_email_msg" >Email Messages</button></div>
+      <div class='child inline-block-child'><p><a href="#enroll_window" rel="modal:open">Enroll</a></p></div>
+      <div class='child inline-block-child'><p><a href="#voice_login_window" rel="modal:open">Voice Verification</a></p></div>
+    </div>
+    
+
+    <!--a href="/enroll_voice">Enroll Voice</a-->  
+    <!-- Modal HTML embedded directly into document -->
+    <div id="enroll_window" class="modal">
+      <label for="txt"> Username: </label>
+      <input id="enroll_username" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "enroll_btn_send">Send</button>
+      <p id="status">Status: </p>
+      <p>Enrollment Phrase : "Never forget tomorrow is a new day" </p>
+      <button id="enroll_btn_listen"  type=button > Start Recording Enrollment audio </button>
+    </div>
+
+    <div id="voice_login_window" class="modal">
+      <label for="txt"> Username: </label>
+      <input id="voice_login_username" autocomplete="off" autofocus="on" placeholder="Please enter here..." /> <button id = "voice_login_btn_send">Send</button>
+      <p id="voice_login_status">Status: </p>
+      <p>Verification Phrase : "Never forget tomorrow is a new day" </p>
+      <button id="voice_login_btn_listen"  type=button > Start Recording Verification audio </button>
+    </div>
+
+    <!--button id="voiceVerificationBtn" >Verify Voice</button-->
+
+    <ul id="messages"></ul>
+
+    <form action="/" method="POST" id="chat_form">
+      <!--p id='chat_status' color="gray">no people in the ChatRoom</p-->
+      <input id="txt" autocomplete="off" autofocus="on" placeholder="type your message here..." /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
+      <button id="btn_listen"  type=button > Listen </button>
+      <ul id="playlist"></ul>
+    </form>
+
+    <script>
+      //init global variables for voice recoginition
+      var recognition = null;
+      var finalTranscript = null;
+      var recording = false;
+      var login = false;
+      var user_realname;
+      let socketID = "";
+      let voiceitid = "";
+      let login_voiceitid;
+      //var socket = io.connect('http://192.198.186.143:8080');
+      var socket = io.connect();
+      //set up socketio-file-upload
+      const uploader = new SocketIOFileUpload(socket);
+      //when socket connected
+      socket.on('connect', function(){
+        socketID = socket.id;
+      });
+
+      //edit bth_listen inner text and color
+      function edit_btn_listen(txt, color){
+        $("#btn_listen").html(txt);
+        $("#btn_listen").css('background', color);
+      }
+      
+      //call this function when the page start to load
+      function load(){
+        $('#enroll_btn_listen').prop("disabled", true);
+        $('#voice_login_btn_listen').prop("disabled", true);
+        //setting recognition interface
+        window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        if ('SpeechRecognition' in window){
+          //setting up voice recognition variable
+          recognition = new window.SpeechRecognition();
+          recognition.interimResults = true;
+	        recognition.maxAlternatives = 5;
+          recognition.lang = "en-US";
+          recognition.continuous = true;
+          //listen to the event that an result has been receive from recognition
+          recognition.onresult = (event) => {
+            let tempStr = $('#txt').val();
+            //go through all possible result
+	          for (let i = event.resultIndex, len = event.results.length; i < len; i++){
+              let transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript = transcript;
+                $('#txt').val( tempStr + finalTranscript);
+              }
+	          }
+          }
+          recognition.onend = () => {
+            //console.log("recording" + recording);
+            if (recording){
+              recognition.start();
+            }
+            else{
+              $('#btn_send').click();
+            }
+          }
+          //listen an event of voice recording end
+          recognition.onaudioend = () =>{
+            //console.log("onaudio end")
+          }
+          recognition.onsudiostart = () =>{
+            console.log("on audio start");
+          }
+        }
+        else{
+          console.log('Speech recognition failed');
+          $("#btn_listen").attr('disabled', true);
+        }
+        $('#messages').append($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
+      }
+      
+      //start voice recognition when "btn_listen" has been clicked
+      $("#btn_listen").on("mousedown", function(){
+	      if (recognition != null && !recording){
+          if(login){
+            startRecording();
+          }
+          recognition.start();
+          recording = true;
+          edit_btn_listen('Listening...', 'lime');
+	      }
+      }).on("mouseup mouseleave", function(){
+          //"mouseleave" when mouse leave the button
+          //execute when user release the mouse
+          if(login){
+            stopRecording();
+          }
+          recognition.stop();
+          recording = false;
+          edit_btn_listen('Listen', 'rgb(130, 224, 255)');
+      });
+
+      //listen to check_all button click event, change all checkboxes to checked
+      $('#check_all').on('click',function(){
+        if(this.checked){
+            $('.checkbox').each(function(){
+                this.checked = true;
+            });
+        }
+        else{
+             $('.checkbox').each(function(){
+                this.checked = false;
+            });
+        }
+      });
+
+      
+
+      //send messages and the destination email to server
+      $("#btn_email_msg").click( function(){
+        var email = prompt('Please enter the recipient email', "nfccarmen@gmail.com");
+        //collect all messages that has been checked
+        if (email != null){
+          email = email.trim().toLowerCase();
+          var email_msg_index = [];
+          //select all checked box and push their values
+          $.each($("input[class='checkbox']:checked"), function(){            
+            email_msg_index.push($(this).val());
+            $(this).attr("checked", false);
+          });
+          $("#check_all").prop('checked',false);
+          //console.log("send " + email_msg_index + " to " + email);
+          socket.emit('email_msg', {"socketID": socketID,"dest_email":email, "email_msg_index":email_msg_index});
+        }
+      })
+
+
+      // submit text message without reload/refresh the page
+      $('#btn_send').click(function(e){
+          e.preventDefault(); // prevents page reloading
+          //console.log(username);
+          if(login){
+            //already log in able to send messages
+            socket.emit('chat_message', {'socketID': socketID, 'msg': $('#txt').val()});
+          }
+          else{
+            //have not log in
+            socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val().toLowerCase()});
+          }
+          $('#txt').val('');
+          return false;
+      });
+
+      // when server response login fail
+      socket.on('login_fail', function(msg){
+        $('#messages').append($('<li>').html('⚫ <i> Login failed. Please try again...</i>'));
+      });
+
+      // append the chat text message
+      socket.on('chat_message', function(msg){
+        var checkbox_tag = "<label class = \"container\">"+msg['data'] +"<input type=\"checkbox\" class=\"checkbox\" value=\"" + msg['index'] + "\"> <span class=\"checkmark\"> </span>" + 
+        " </label>";
+        $('#messages').append($('<li>').html(checkbox_tag));
+      });
+      // append text if someone is online
+      socket.on('is_online', function(data) {
+        console.log(data);
+        $('#messages').append($('<li>').html(data['data']));
+        user_realname = data['curr_username'];
+        login = true;
+        socket.emit('room', 'online');
+        socket.on('email_msg_res', function(msg){
+          alert(msg);
+        });
+      });
+
+      function system_msg(msg){
+        $('#messages').append($('<li>').html('⚫ <i> ' + msg + '</i>'));
+      }
+
+      socket.on('hi', function(data){
+        system_msg(data);
+      });
+      socket.on('curr_date', function(data){
+        system_msg(new Date().toString());
+      });
+      socket.on('six', function(data){
+        system_msg(data);
+      });
+      socket.on('sign_out', function(data){
+        login = false;
+        $('#messages').empty();
+        system_msg(data);
+        //setTimeout(function(){ location.reload(); }, 3000);
+        
+      });
+      socket.on('tom_date', function(data){
+        system_msg(new Date(new Date().getTime() + (24 * 60 * 60 * 1000)));
+      });
+
+
+      //update number of people in the chatroom
+      /*socket.on('num_update', function(msg){
+        var chatHtml = document.getElementById("chat_status");
+        chatHtml.innerText = msg + ' people in the chat....';
+      });*/
+
+      //set up voice recorder 
+      const recorder = new MicRecorder({
+        bitRate: 128
+      });
+
+      //start audio recording
+      function startRecording() {
+        recorder.start().then(() => {
+          //console.log('start recording');
+        }).catch((e) => {
+          console.error(e);
+        });
+      }
+      //stop recording and create a mp3 file
+      //**it create two extra empty (blob['size] > 0) audio file automatically
+      function stopRecording() {
+        recorder.stop().getMp3().then(([buffer, blob]) => {
+          if (blob['size'] > 0){
+            //console.log(buffer, blob);
+            const file = new File(buffer, user_realname+'.mp3', {
+              type: blob.type,
+              lastModified: Date.now()
+            });
+            //send files to node server
+            uploader.submitFiles([file]);
+            /*const li = document.createElement('li');
+            const player = new Audio(URL.createObjectURL(file));
+            player.controls = true;
+            li.appendChild(player);
+            document.querySelector('#playlist').appendChild(li);*/
+            //uploader.listenOnInput(file);
+          }
+        }).catch((e) => {
+          console.error(e);
+        });
+      }
+
+      //sub the result of check real name
+      socket.on('check_real_name_res', function(data){
+        console.log(data);
+        if (data['msg'] === "SUCC"){
+            voiceitid = data['voiceitid'];
+            //console.log(data['voiceitid'])
+            $('#enroll_username').prop("disabled", true);
+            $('#enroll_btn_send').prop("disabled", true);
+            $("#enroll_btn_listen").prop("disabled", false);
+            $("#status").prop("innerHTML", "Status: You have " + data['enroll_num'] + " audio enrolled (Require at least 3 audios).");
+        }
+        else{
+            $('#enroll_username').val('');
+        }
+      });
+
+
+      //listen to btn_enroll_send button click event
+      $("#enroll_btn_send").on("click", function(){
+        socket.emit('check_real_name', {"socketid": socketID, "real_name": $('#enroll_username').val().toLowerCase()} );
+      });
+
+      //start voice recognition when "btn_listen" has been clicked
+      $("#enroll_btn_listen").on("mousedown", function(){
+        if (!recording){
+          socket.emit('enroll_audio', {'socketid': socketID, 'voiceitid': voiceitid});
+          startRecording();
+          recording = true;
+        }
+      }).on("mouseup mouseleave", function(){
+          //"mouseleave" when mouse leave the button
+          //execute when user release the mouse
+          stopRecording();
+          recording = false;
+      });
+
+      //listen to server response on the result of voice enrollment
+      socket.on('enroll_audio_res', function(data){
+        $('#status').prop('innerHTML', 'Status: ' + data['msg']);
+      });
+
+      //sub the result of check real name
+      socket.on('check_real_name_login_res', function(data){
+        //console.log(data);
+        if (data['msg'] === "SUCC"){
+          login_voiceitid = data['voiceitid'];
+            //console.log(data['voiceitid'])
+            $('#voice_login_username').prop("disabled", true);
+            $("#voice_login_btn_listen").prop("disabled", false);
+            $("#voice_login_btn_send").prop("disabled", true);
+            $("#voice_login_status").prop("innerHTML", "Status: You have " + data['enroll_num'] + " audio enrolled (Require at least 3 audios).");
+        }
+        else{
+            $('#voice_login_username').val('');
+        }
+      });
+
+      //listen to btn_enroll_send button click event
+      $("#voice_login_btn_send").on("click", function(){
+        socket.emit('check_real_name_login', {"socketid": socketID, "real_name": $('#voice_login_username').val().toLowerCase()} );
+      });
+
+      //start voice recognition when "btn_listen" has been clicked
+      $("#voice_login_btn_listen").on("mousedown", function(){
+        if (!recording){
+          socket.emit('voice_login_audio', {'socketid': socketID, 'voiceitid': login_voiceitid, 'real_name': $('#voice_login_username').val().toLowerCase()});
+          startRecording();
+          recording = true;
+        }
+      }).on("mouseup mouseleave", function(){
+          //"mouseleave" when mouse leave the button
+          //execute when user release the mouse
+          stopRecording();
+          recording = false;
+      });
+
+      //listen to server response on the result of voice enrollment
+      socket.on('voice_login_audio_res', function(data){
+        $('#voice_login_status').prop('innerHTML', 'Status: ' + data['msg']);
+        if (data['res'] === "SUCC"){
+          $("#voice_login_btn_listen").prop("disabled", true);
+        }
+      });
+
+
+
+    </script>
+  </body>
+</html>
