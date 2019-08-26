@@ -14,9 +14,11 @@ class App extends Component {
     const socket = socketIOClient(endpoint);
     socket.on("num_connect", data => this.setState({num_connect: data}));
     socket.on("num_msg", data => this.setState({num_msg: data}));
+    socket.on("amqp_num_connect", data => this.setState({amqp_num_connect: data}));
+    socket.on("amqp_num_msg", data => this.setState({amqp_num_msg: data}));
   }
   render() {
-    const { num_connect, num_msg } = this.state;
+    const { num_connect, num_msg, amqp_num_connect, amqp_num_msg } = this.state;
     return (
         <div style={{ textAlign: "center" }}>         
           {num_connect ?
@@ -30,6 +32,18 @@ class App extends Component {
             Chatroom has transferred {num_msg} messages.
           </p> 
           :<p>Loading...</p>
+          }
+          {amqp_num_connect ?
+          <p>
+            AMQP Chatroom has {amqp_num_connect} connections.
+          </p> 
+          :<p>AMQP Loading...</p>
+          }
+          {amqp_num_msg ?
+          <p>
+            AMQP Chatroom has transferred {amqp_num_msg} messages.
+          </p> 
+          :<p>AMQP Loading...</p>
           }
         </div>
     );

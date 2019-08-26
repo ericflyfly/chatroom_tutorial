@@ -177,12 +177,13 @@ amqp.then(function(conn) {
         durable: false
     }).then(function (err){
         q = 'chatroom';
+        ch.purgeQueue(q);
+        //ch.deleteQueue(q);
         ch.assertQueue(q).then(function(ok) {
-            ch.bindQueue(q, exchange, "username");
-            ch.bindQueue(q, exchange, "chat_msg");
-            ch.bindQueue(q, exchange, "disconnect");
-            ch.bindQueue(q, exchange, "num_connect");
-
+            let routingKeys = ["username", "chat_msg", "disconnect", "online"];
+            routingKeys.forEach(function(element){
+                ch.bindQueue(q, exchange, element);
+            })
             return ch.consume(q, function(msg) {
                 if (msg !== null) {
                     switch(msg.fields.routingKey){
@@ -191,18 +192,21 @@ amqp.then(function(conn) {
                             break;
                         case "chat_msg":
                             msg_arr.push(msg_username + ": " + msg.content.toString());
+                            amqp_channel.publish("direct_logs", "num_msg", Buffer.from(msg_arr.length.toString()));
                             io.sockets.in('online').emit('chat_message', {'index': msg_arr.length - 1, 'data': '<strong>' + msg_username + '</strong>: ' + msg.content.toString() });
                             break;
                         case "disconnect":
                             num_connect -= 1;
-                            console.log(msg.content.toString());
+                            //console.log(msg.content.toString());
+                            amqp_channel.publish("direct_logs", "num_connect", Buffer.from(num_connect.toString()))
                             //client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
                             break;
-                        case "num_connect":
-                            console.log("connect " + msg.content.toString());
+                        case "online":
+                            amqp_channel.publish("direct_logs", "num_msg", Buffer.from(msg_arr.length.toString()));
+                            amqp_channel.publish("direct_logs", "num_connect", Buffer.from(num_connect.toString()))
                             break;
                         default:
-                            thorw ("Unhandled rabbitmq rotingkey in \"" + q + "\" queue.");
+                            thorw ("Unhandled rabbitmq routingkey in \"" + q + "\" queue.");
                             break;
                     }
                     ch.ack(msg);
@@ -211,25 +215,8 @@ amqp.then(function(conn) {
         });
     });
 }).catch(console.warn);
-/*
-// Publisher
-amqp.then(function(conn) {
-    return conn.createChannel();
-}).then(function(ch) {
-    var exchange = "direct_logs";
-    var msg = "Hello World!";
-    var servity = "chat_msg";
-    ch.assertExchange(exchange, 'direct',{
-        durable: false
-    });
-    ch.publish(exchange, servity, Buffer.from(msg));
-    console.log(" [x] Sent %s: '%s'", servity , msg);
-
-}).catch(console.warn);
-*/
 
 let mongo;
-
 mongo_client.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom",function(err, db) {
     if (err) {
         console.log('MongoDB Connection Error. Please make sure that MongoDB is running.');
@@ -279,38 +266,6 @@ function create_redis_data(){
 
 }
 
-//listen to MQTT broker connection
-client.on('connect', function (){
-    //MQTT Connection success, subscribe to certain topics
-    console.log("Connected to mqtt");
-    client.subscribe(topic_header+'chat_room/disconnect');
-    client.subscribe(topic_header+'chat_room/username');
-    client.subscribe(topic_header+'chat_room/chat_message/#');
-    client.subscribe('monitor/online');
-});
-
-//Listen MQTT message event and then take action respectively
-client.on('message', function(topic, message){
-    message = message.toString();
-    //console.log('%s -> %s', topic, message.toString());
-    switch(topic){
-        /*case topic_header+'chat_room/disconnect':
-            //io.sockets.in('online').emit('is_online', '🔴 <i>' + message + ' left the chat..</i>');
-            num_connect -= 1;
-            client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
-            break;*/
-        case 'monitor/online':
-            client.publish(topic_header+'chat_room/num_msg', msg_arr.length.toString());
-            client.publish(topic_header+'chat_room/num_connect', num_connect.toString());
-            amqp_channel.publish("direct_logs", "num_connect", Buffer.from(num_connect.toString()))
-            break;
-        default:
-            console.log('\'%s\' topic not handled --> ', topic);
-    }
-});
-
-
-
 //socket.io communicate with frontend
 io.sockets.on('connection', function(socket) {
     const uploader = new siofu();
@@ -349,7 +304,7 @@ io.sockets.on('connection', function(socket) {
                             curr_username = real_name_voiceit;
                             socket.username = res['nick_name'];
                             num_connect += 1;
-                            client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
+                            //client.publish(topic_header + 'chat_room/num_connect', num_connect.toString());
                             amqp_channel.publish("direct_logs", "num_connect", Buffer.from(num_connect.toString()));
                             io.to(audio_action_socketid[2]).emit('is_online', {'curr_username': curr_username, 'data': '🔵 <i>' + socket.username + ' join the chat..</i>' });
                         }
