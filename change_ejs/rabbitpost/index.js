@@ -397,6 +397,7 @@ io.sockets.on('connection', function(socket) {
             }
             else{
                 if (reply){
+                    let socketID = message['socketID'];
                     switch(message['msg'].toLowerCase()){
                         case 'hi':
                             io.to(socketID).emit('hi', reply);
@@ -410,7 +411,6 @@ io.sockets.on('connection', function(socket) {
                         case  'sign out':
                             socket.leave("online");
                             io.to(socketID).emit('sign_out', reply);
-                            console.log('sign out');
                             if (num_connect > 0){
                                 //client.publish(topic_header+'chat_room/disconnect', socket.username);//rabbit amqp
                                 amqp_channel.publish(exchange = 'direct_logs', "disconnect", Buffer.from(''));

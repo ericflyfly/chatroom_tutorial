@@ -226,11 +226,8 @@ client.on('message', function(topic, message){
             msg_username = message;
             break;
         case topic_header+'chat_room/chat_message/data':
-            //console.log('Receive %s from %s', message, topic);
-            //num_msg += 1;
-            client.publish(topic_header+'chat_room/num_msg', msg_arr.length.toString());
             msg_arr.push(msg_username + ": " + message);
-            //console.log('num msg: %s', msg_arr.length.toString());
+            client.publish(topic_header+'chat_room/num_msg', msg_arr.length.toString());
             io.sockets.in('online').emit('chat_message', {'index': msg_arr.length - 1, 'data': '<strong>' + msg_username + '</strong>: ' + message });
             break;
         case 'monitor/online':
@@ -373,6 +370,7 @@ io.sockets.on('connection', function(socket) {
             }
             else{
                 if (reply){
+                    let socketID = message['socketID'];
                     switch(message['msg'].toLowerCase()){
                         case 'hi':
                             io.to(socketID).emit('hi', reply);
