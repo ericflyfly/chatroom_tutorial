@@ -13,8 +13,10 @@ const app = express();
 app.use(index);
 const server = http.createServer(app);
 const io = socketIo(server);
+var amqp = require('amqplib').connect('amqp://mqadmin:password@192.168.186.143:8086');
 
 //share variables
+let amqp_channel = null;
 var num_connect = '0';
 var num_msg = '0';
 
@@ -42,7 +44,7 @@ client.on('message', function(topic, msg){
     default:
       console.log('Error!!!! \'%s\' topic not handled --> ', topic);
   }
-  console.log('%s -> %s', topic, msg.toString());
+  //console.log('%s -> %s', topic, msg.toString());
 });
 
 //get data from dark sky backend every 10 seconds
@@ -54,5 +56,46 @@ io.on("connection", socket => {
         console.log("Client disconnected");
     });*/
 });
+
+amqp.then(function(conn) {
+  return conn.createChannel();
+}).then(function(ch) {
+  amqp_channel = ch;
+  var exchange = 'direct_logs';
+  ch.assertExchange(exchange, 'direct', {
+      durable: false
+  }).then(function (err){
+      q = 'monitor';
+      ch.purgeQueue(q);
+      //ch.deleteQueue(q);
+      ch.assertQueue(q).then(function(ok) {
+        let routingKeys = ["num_connect", "num_msg"];
+        routingKeys.forEach(function(element){
+            ch.bindQueue(q, exchange, element);
+        })
+        ch.consume(q, function(msg) {
+            if (msg !== null) {
+                switch(msg.fields.routingKey){
+                    case "num_connect":
+                        console.log("connections: " + msg.content.toString());
+                        io.emit("amqp_num_connect", msg.content.toString());
+                        break;
+                    case "num_msg":
+                        console.log("amqp_num_msg: " + msg.content.toString());
+                        io.emit("amqp_num_msg", msg.content.toString());
+                        break;
+                    default:
+                        console.log("Unhandled rabbitmq routingkey " + msg.fields.routingKey + " in \"" + q + "\" queue.");
+                        break;
+                }
+                ch.ack(msg);
+            }
+        });
+        return amqp_channel.publish("direct_logs", "online", Buffer.from(""));
+      });
+  });
+}).catch(console.warn);
+
+
 
 server.listen(port, () => console.log(`Listening on port ${port}`));

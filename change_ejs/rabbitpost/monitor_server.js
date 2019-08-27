@@ -69,12 +69,11 @@ amqp.then(function(conn) {
       ch.purgeQueue(q);
       //ch.deleteQueue(q);
       ch.assertQueue(q).then(function(ok) {
-        amqp_channel.publish("direct_logs", "online", Buffer.from(""));
         let routingKeys = ["num_connect", "num_msg"];
         routingKeys.forEach(function(element){
             ch.bindQueue(q, exchange, element);
         })
-        return ch.consume(q, function(msg) {
+        ch.consume(q, function(msg) {
             if (msg !== null) {
                 switch(msg.fields.routingKey){
                     case "num_connect":
@@ -92,6 +91,7 @@ amqp.then(function(conn) {
                 ch.ack(msg);
             }
         });
+        return amqp_channel.publish("direct_logs", "online", Buffer.from(""));
       });
   });
 }).catch(console.warn);
