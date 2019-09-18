@@ -13,7 +13,7 @@
       #messages li:nth-child(odd) { background: #ddd; }
       #chat_status {margin-bottom: 1%; margin-left: 1%;}
       #btn_email_msg {margin-left: 43px; margin-bottom: 1%;}
-      #check_all_container{margin-left: 10px; margin-top: 10px !important; margin-bottom:1px !important;}
+      #check_all_container{ margin-top: 6px !important;}
 
       /* The container of checkbox*/
       .container {
@@ -88,11 +88,19 @@
         transform: rotate(45deg);
       }
 
-      .inline-block-child {
+      /*.inline-block-child {
         display: inline-block;
         margin-left: 2%;
-      }
+      }*/
 
+      .navbar-nav > li{
+        margin-left:5px;
+        margin-right:5px;
+      }
+      
+      .switch_ele{
+        margin-left: 50px;
+      }
 
     </style>
     <script src="../../socket.io/socket.io.js"></script>
@@ -105,23 +113,50 @@
     <!-- jQuery Modal -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.5.0/css/bootstrap4-toggle.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.5.0/js/bootstrap4-toggle.min.js"></script>
   </head>
   <body onload='load()'>
 
-    <label class="container" id="check_all_container">
-      <input type="checkbox" id="check_all">
-      <span class="checkmark"></span>
-    </label>
+    <!--label class="container" id="check_all_container">
+        <input type="checkbox" id="check_all">
+        <span class="checkmark"></span>
+    </label-->
 
-    <!--input type="checkbox" id="check_all"-->
+    <nav class="navbar navbar-expand-sm navbar-light bg-light sticky-top">
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav ">
+          <li class="nav-item">
+            <label class="container" id="check_all_container">
+              <input type="checkbox" id="check_all">
+              <span class="checkmark"></span>
+            </label>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btn_email_msg" btn-sm>Email Messages</button>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-primary btn-sm">Enroll Voice</button>
+          </li>
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-primary btn-sm">Voice Verification</button>
+          </li>
+        </ul>
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item" id="switch_ele" class="float-left">
+                <input id="switch_mode" type="checkbox" data-toggle="toggle" data-on="Airfield" data-off="Chat" data-width="130" data-size="sm" data-onstyle="warning" data-offstyle="dark" >
+            </li>
+        </ul>
 
-    <!-- Link to open the modal -->
-    <div class='parent'>
-      <div class='child inline-block-child'><button id="btn_email_msg" >Email Messages</button></div>
-      <div class='child inline-block-child'><p><a href="#enroll_window" rel="modal:open">Enroll</a></p></div>
-      <div class='child inline-block-child'><p><a href="#voice_login_window" rel="modal:open">Voice Verification</a></p></div>
-    </div>
-    
+      </div>
+      <!--p><a href="#enroll_window" rel="modal:open">Enroll</a></p>
+      <p><a href="#voice_login_window" rel="modal:open">Voice Verification</a></p-->
+      <!--input type="checkbox" data-toggle="toggle" data-on="Air field" data-off="Chat" data-size="normal" data-onstyle="warning" data-width="100"-->
+    </nav>
 
     <!--a href="/enroll_voice">Enroll Voice</a-->  
     <!-- Modal HTML embedded directly into document -->
@@ -149,10 +184,19 @@
       <!--p id='chat_status' color="gray">no people in the ChatRoom</p-->
       <input id="txt" autocomplete="off" autofocus="on" placeholder="type your message here..." /> <button id = "btn_send" style=" width: 1px; height: 1px; padding: 1px; font-size:1px; margin-left: 2px;">Send</button>
       <button id="btn_listen"  type=button > Listen </button>
-      <ul id="playlist"></ul>
+      <!--ul id="playlist"></ul-->
     </form>
 
     <script>
+
+      $(function() {
+    $('#toggle-two').bootstrapToggle({
+      on: 'Airfield',
+      off: 'Chat'
+    });
+  })
+
+  
       //init global variables for voice recoginition
       var recognition = null;
       var finalTranscript = null;
@@ -223,7 +267,7 @@
           console.log('Speech recognition failed');
           $("#btn_listen").attr('disabled', true);
         }
-        $('#messages').append($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
+        $('#messages').prepend($('<li>').html('⚫ <i> Please hold "Listen" button and tell me your username...</i>'));
       }
       
       //start voice recognition when "btn_listen" has been clicked
@@ -261,8 +305,6 @@
         }
       });
 
-      
-
       //send messages and the destination email to server
       $("#btn_email_msg").click( function(){
         var email = prompt('Please enter the recipient email', "nfccarmen@gmail.com");
@@ -281,7 +323,6 @@
         }
       })
 
-
       // submit text message without reload/refresh the page
       $('#btn_send').click(function(e){
           e.preventDefault(); // prevents page reloading
@@ -295,24 +336,24 @@
             socket.emit('username', {'socketID': socketID, 'msg': $('#txt').val().toLowerCase()});
           }
           $('#txt').val('');
-          return false;
+          //return false;
       });
 
       // when server response login fail
       socket.on('login_fail', function(msg){
-        $('#messages').append($('<li>').html('⚫ <i> Login failed. Please try again...</i>'));
+        $('#messages').prepend($('<li>').html('⚫ <i> Login failed. Please try again...</i>'));
       });
 
       // append the chat text message
       socket.on('chat_message', function(msg){
         var checkbox_tag = "<label class = \"container\">"+msg['data'] +"<input type=\"checkbox\" class=\"checkbox\" value=\"" + msg['index'] + "\"> <span class=\"checkmark\"> </span>" + 
         " </label>";
-        $('#messages').append($('<li>').html(checkbox_tag));
+        $('#messages').prepend($('<li>').html(checkbox_tag));
       });
       // append text if someone is online
       socket.on('is_online', function(data) {
         console.log(data);
-        $('#messages').append($('<li>').html(data['data']));
+        $('#messages').prepend($('<li>').html(data['data']));
         user_realname = data['curr_username'];
         login = true;
         socket.emit('room', 'online');
@@ -322,7 +363,7 @@
       });
 
       function system_msg(msg){
-        $('#messages').append($('<li>').html('⚫ <i> ' + msg + '</i>'));
+        $('#messages').prepend($('<li>').html('⚫ <i> ' + msg + '</i>'));
       }
 
       socket.on('hi', function(data){
@@ -472,8 +513,6 @@
           $("#voice_login_btn_listen").prop("disabled", true);
         }
       });
-
-
 
     </script>
   </body>

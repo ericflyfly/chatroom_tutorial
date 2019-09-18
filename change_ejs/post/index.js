@@ -15,7 +15,7 @@ app.use(express.json());
 const assert = require('assert');
 const fs = require('fs');
 const redis = require("redis");
-const redis_client = redis.createClient();
+const redis_client = redis.createClient('redis://30.0.0.34:6379');
 const voiceit2 = require('voiceit2-nodejs');
 const config = require('./config');
 const Joi = require('joi');
@@ -149,18 +149,29 @@ app.delete('/api/user/:real_name', function (req, res){
 });
 
 //const client = mqtt.connect('mqtt://test.mosquitto.org');
-const client = mqtt.connect('mqtt://192.168.186.143:8088');
+const client = mqtt.connect('mqtt://30.0.0.34:1883');
+
+//listen to MQTT broker connection
+client.on('connect', function (){
+    //MQTT Connection success, subscribe to certain topics
+    console.log("Connected to mqtt");
+    client.subscribe(topic_header+'chat_room/disconnect');
+    client.subscribe(topic_header+'chat_room/username');
+    client.subscribe(topic_header+'chat_room/chat_message/#');
+    client.subscribe('monitor/online');
+});
 
 let mongo;
-
-mongo_client.connect("mongodb://ccl:ccl123!@localhost:27017/chatroom",function(err, db) {
+//192.168.186.143:27017
+mongo_client.connect("mongodb://ccl:ccl123!@30.0.0.34:27017/chatroom",function(err, db) {
     if (err) {
         console.log('MongoDB Connection Error. Please make sure that MongoDB is running.');
         process.exit(1);
     }
-  console.log("Database created!");
+  console.log("Connected to MongoDB!");
   mongo = db;
   bucket = new mongodb.GridFSBucket(mongo.db("chatroom"));
+  addDataMongo();
 });
 
 /*const db = mongojs("ccl:ccl123!@localhost/chatroom", ['myCollection']);
@@ -174,7 +185,7 @@ redis_client.on("error", function (err){
 
 redis_client.on("connect", function(){
     console.log("Connected to Redis.");
-    //create_redis_data();
+    create_redis_data();
 });
 
 function create_redis_data(){
@@ -202,15 +213,6 @@ function create_redis_data(){
 
 }
 
-//listen to MQTT broker connection
-client.on('connect', function (){
-    //MQTT Connection success, subscribe to certain topics
-    console.log("Connected to mqtt");
-    client.subscribe(topic_header+'chat_room/disconnect');
-    client.subscribe(topic_header+'chat_room/username');
-    client.subscribe(topic_header+'chat_room/chat_message/#');
-    client.subscribe('monitor/online');
-});
 
 //Listen MQTT message event and then take action respectively
 client.on('message', function(topic, message){
@@ -238,6 +240,22 @@ client.on('message', function(topic, message){
             console.log('\'%s\' topic not handled --> ', topic);
     }
 });
+
+function addDataMongo(){
+    //remove previous information from the chatroom
+    for(var i = 0; i < 3; i++){
+        mongo.db("chatroom").collection("user").deleteMany(myobj[i], function(err, obj) {
+            if (err) throw err;
+            console.log(obj.result.n + " document(s) deleted");
+        });
+    }
+
+    //add new information from the chatroom
+    mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
+        if (err) throw err;
+        console.log("Number of documents inserted: " + res.insertedCount);
+    });
+}
 
 
 
@@ -324,19 +342,6 @@ io.sockets.on('connection', function(socket) {
     //console.log(client);
     socket.on('username', function(username_data) {
         //client.subscribe('chat_room/#');
-        //remove previous information from the chatroom
-        /*for(var i = 0; i < 3; i++){
-            mongo.db("chatroom").collection("user").deleteMany(myobj[i], function(err, obj) {
-                if (err) throw err;
-                console.log(obj.result.n + " document(s) deleted");
-            });
-        }*/
-
-        //add new information from the chatroom
-        /*mongo.db("chatroom").collection("user").insertMany(myobj, function(err, res) {
-            if (err) throw err;
-            console.log("Number of documents inserted: " + res.insertedCount);
-        });*/
 
         mongo.db("chatroom").collection("user").findOne({real_name: username_data['msg']}, function(err, res){
             socketID = username_data['socketID'];

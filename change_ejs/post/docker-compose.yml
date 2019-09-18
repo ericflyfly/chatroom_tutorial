@@ -1,0 +1,46 @@
+version: '2'
+services:
+
+  mongodb:
+    build:
+      context: ./mongodb
+      dockerfile: Dockerfile
+    image: mongodb
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+
+  mqtt:
+    build:
+      context: ./mqtt
+      dockerfile: Dockerfile
+    image: mqtt
+    container_name: mqtt
+    ports:
+      - "1883:1883"
+
+  redis:
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+  
+  setMongo:
+    build:
+      context: ./chatroomMonitor
+      dockerfile: Dockerfile
+    image: setmongo
+    container_name: setmongo
+
+  nodejs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chatroom
+    container_name: chatroom
+    ports:
+      - "8080:8080"
+    network_mode: "host"
